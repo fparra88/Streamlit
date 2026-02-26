@@ -99,12 +99,14 @@ def generar_pdf_zeutica(datos_cliente, items, forma_pago, comentario_seleccionad
         pdf.set_font('Arial', '', 9)
         pdf.cell(0, 6, valor, 0, 1)
 
-    fila_cliente("NOMBRE CLIENTE:", datos_cliente.get('empresa', 'N/A'))
-    fila_cliente("EMPRESA:", datos_cliente.get('empresa', 'N/A'))
-    fila_cliente("ATENCION:", datos_cliente.get('atencion', 'N/A'))
-    fila_cliente("EMAIL:", datos_cliente.get('email', 'N/A'))
-    fila_cliente("DOMICILIO:", datos_cliente.get('domicilio', 'N/A'))
-    fila_cliente("TELEFONO:", datos_cliente.get('telefono', 'N/A'))
+
+    # Usamos str(valor or "") para asegurar que nunca pase un 'None'
+    fila_cliente("NOMBRE CLIENTE:", str(seleccion_nombre or "N/A"))
+    fila_cliente("EMPRESA:", str(datos_cliente.get('empresa') or "N/A"))
+    fila_cliente("ATENCION:", str(datos_cliente.get('atencion') or "N/A"))
+    fila_cliente("EMAIL:", str(datos_cliente.get('email') or "N/A"))
+    fila_cliente("DOMICILIO:", str(datos_cliente.get('domicilio') or "N/A"))
+    fila_cliente("TELEFONO:", str(datos_cliente.get('telefono') or "N/A"))
     pdf.ln(5)
 
     pdf.set_fill_color(240, 240, 240)
@@ -308,51 +310,58 @@ if st.session_state.mostrar_formCotizacion:
             comentario_final = comentario
 
         if st.session_state.items_cotizacion and empresa_nombre:
-            datos_cliente = {
-                "empresa": empresa_nombre, "atencion": atencion, "email": email, 
-                "domicilio": domicilio, "telefono": telefono
-            }
+            try:
+                datos_cliente = {
+                    "empresa": empresa_nombre, "atencion": atencion, "email": email, 
+                    "domicilio": domicilio, "telefono": telefono
+                }
                 
-            pdf_bytes = generar_pdf_zeutica(datos_cliente, st.session_state.items_cotizacion, forma_pago, comentario_final, costo_envio)
+                pdf_bytes = generar_pdf_zeutica(datos_cliente, st.session_state.items_cotizacion, forma_pago, comentario_final, costo_envio)
                 
-            if st.download_button(
-                    "📄 Descargar y Registrar Cotización",
-                    data=pdf_bytes,
-                    file_name=f"Cotizacion_{st.session_state.codigo_actual}_{seleccion_nombre}.pdf",
-                    mime="application/pdf",
-                    type="primary",
-                    use_container_width=True
-                ):
-                    payload = {
-                        "codigo": st.session_state.codigo_actual,
-                        "empresa": empresa_nombre,                        
-                        "atencion": atencion,
-                        "email": email,
-                        "domicilio": domicilio,
-                        "telefono": telefono,
-                        "subtotal": subtotal,
-                        "iva": iva,
-                        "total": total_final,
-                        "forma_pago": forma_pago,
-                        "comentarios": comentario_final,
-                        "items": [
-                            {
-                            "sku": i['producto'].split(' (')[0],
-                            "nombre_producto": i['producto'].split(' (')[1].replace(')', ''),
-                            "cantidad": i['cantidad'],
-                            "precio_unitario": i['precio'],
-                            "total_linea": i['total']
-                            } for i in st.session_state.items_cotizacion
-                        ]
-                    }
+                if st.download_button(
+                        "📄 Descargar y Registrar Cotización",
+                        data=pdf_bytes,
+                        file_name=f"Cotizacion_{st.session_state.codigo_actual}_{seleccion_nombre}.pdf",
+                        mime="application/pdf",
+                        type="primary",
+                        use_container_width=True
+                    ):
+                        payload = {
+                            "codigo": st.session_state.codigo_actual,
+                            "empresa": empresa_nombre,                        
+                            "atencion": atencion,
+                            "email": email,
+                            "domicilio": domicilio,
+                            "telefono": telefono,
+                            "subtotal": subtotal,
+                            "iva": iva,
+                            "total": total_final,
+                            "forma_pago": forma_pago,
+                            "comentarios": comentario_final,
+                            "items": [
+                                {
+                                "sku": i['producto'].split(' (')[0],
+                                "nombre_producto": i['producto'].split(' (')[1].replace(')', ''),
+                                "cantidad": i['cantidad'],
+                                "precio_unitario": i['precio'],
+                                "total_linea": i['total']
+                                } for i in st.session_state.items_cotizacion
+                            ]
+                        }
         
-                    res = requests.post(f"{API_BASE_URL}/zeutica/cotizaciones/guardar", json=payload)
-                    if res.status_code == 200:
-                        st.success(f"✅ Cotización {st.session_state.codigo_actual} guardada.")
-                        st.session_state.items_cotizacion = []
-                        st.session_state.codigo_actual = "000"
-                    else:
-                        st.error("❌ Error al guardar en la base de datos.")
+                        res = requests.post(f"{API_BASE_URL}/zeutica/cotizaciones/guardar", json=payload)
+                        if res.status_code == 200:
+                            st.success(f"✅ Cotización {st.session_state.codigo_actual} guardada.")
+                            st.session_state.items_cotizacion = []
+                            st.session_state.codigo_actual = "000"
+                        else:
+                            st.error("❌ Error al guardar en la base de datos.")
+                            
+            except Exception as e:
+                # --- ESTE ES EL BLINDAJE ---
+                st.error(f"⚠️ No se pudo generar la cotización.")
+                st.warning(f"Detalle técnico: {e}")
+                st.info("Revisa que todos los campos del cliente (Atención, Empresa, Domicilio) no estén vacíos.")
 
         elif not empresa_nombre:
             st.warning("⚠️ Debes ingresar al menos el nombre de la Empresa.")

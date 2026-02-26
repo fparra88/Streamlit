@@ -4,7 +4,7 @@ import pandas as pd
 
 # --- CONFIGURACIÓN DE URLs (Modifícalas después) ---
 URL_GET_PRODUCTOS = "http://10.0.9.227:8090/zeutica/productos"
-URL_POST_TRASPASO = "http://10.0.9.227:8090/traspaso"
+URL_POST_TRASPASO = "http://10.0.9.227:8090/zeutica/traspaso"
 
 def obtener_inventario():
     """Obtiene los productos y crea un diccionario para el selectbox"""
