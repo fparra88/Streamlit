@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 
-API_BASE_URL = "http://3.151.25.133:8090"
+API_BASE_URL = "http://10.0.9.227:8090"
 
 st.header("Reporte de ventas plataformas por fecha")
 st.info("Selecciona un inicio y final de fecha para generar reporte de Ventas")

@@ -20,7 +20,7 @@ def get_base64_image(image_path):
 img_base64 = get_base64_image("banner.jpg") # Carga imagen para banner
 
 def test_server():
-    respuesta = requests.get("http://3.151.25.133:8090")
+    respuesta = requests.get("http://10.0.9.227:8090")
     if respuesta.status_code == 200:
         return respuesta
     return "Servidor con Falla, Checar con TI"
@@ -38,7 +38,7 @@ if cookie_session and not st.session_state.autenticado:
 
 def validar_acceso(user, pw):
     try:
-        res = requests.post("http://3.151.25.133:8090/login", json={"usuario": user, "password": pw})
+        res = requests.post("http://10.0.9.227:8090/login", json={"usuario": user, "password": pw})
         if res.status_code == 200:
             st.session_state.autenticado = True
             st.session_state.usuario_nombre = usuario

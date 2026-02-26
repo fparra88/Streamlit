@@ -6,7 +6,7 @@ def app():
     st.markdown("Ingresa los datos del cliente para registrarlo en la base de datos de AWS.")
     
     # Importante: No uses 'localhost' aquí si la API está en la nube
-    API_BASE_URL = "http://3.151.25.133:8090/zeutica/clientenuevo"
+    API_BASE_URL = "http://10.0.9.227:8090/zeutica/clientenuevo"
 
     # Usamos st.form para agrupar los inputs y enviarlos solo al presionar el botón
     with st.form("formulario_cliente", clear_on_submit=True):
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     app()
 
     submit_button = st.button("Ver Clientes")
-    url_enviar = "http://3.151.25.133:8090/zeutica/clientes"
+    url_enviar = "http://10.0.9.227:8090/zeutica/clientes"
     
     if submit_button:
         
