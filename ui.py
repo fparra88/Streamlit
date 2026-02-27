@@ -17,7 +17,7 @@ def get_base64_image(image_path):
         return base64.b64encode(img_file.read()).decode()    
 
     
-img_base64 = get_base64_image("banner.jpg") # Carga imagen para banner
+img_base64 = get_base64_image("banner.png") # Carga imagen para banner
 
 def test_server():
     respuesta = requests.get("http://10.0.9.227:8090")
