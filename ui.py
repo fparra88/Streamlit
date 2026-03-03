@@ -5,6 +5,9 @@ import base64
 from streamlit_option_menu import option_menu
 from datetime import datetime
 
+#API_BASE_URL = "http://10.0.9.227:8090" url produccion
+API_BASE_URL = "http://127.0.0.1:8000"
+
   # Configuración de la página
 st.set_page_config(
     page_title="Gestor de Procesos",
@@ -20,7 +23,7 @@ def get_base64_image(image_path):
 img_base64 = get_base64_image("zeuticaBanner.png") # Carga imagen para banner
 
 def test_server():
-    respuesta = requests.get("http://10.0.9.227:8090")
+    respuesta = requests.get(API_BASE_URL)
     if respuesta.status_code == 200:
         return respuesta
     return "Servidor con Falla, Checar con TI"
@@ -38,7 +41,7 @@ if cookie_session and not st.session_state.autenticado:
 
 def validar_acceso(user, pw):
     try:
-        res = requests.post("http://10.0.9.227:8090/login", json={"usuario": user, "password": pw})
+        res = requests.post(f"{API_BASE_URL}/login", json={"usuario": user, "password": pw})
         if res.status_code == 200:
             st.session_state.autenticado = True
             st.session_state.usuario_nombre = usuario
@@ -108,7 +111,7 @@ if not st.session_state.autenticado:
 """, unsafe_allow_html=True)
 
     with st.container():
-        st.title("🔐 Acceso Privado Zeutica")
+        st.title("🔐 Acceso Consola Zeutica")
         usuario = st.text_input("Usuario")
         clave = st.text_input("Contraseña", type="password")
         

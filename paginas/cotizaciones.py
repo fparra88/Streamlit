@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 from fpdf import FPDF
 from datetime import datetime
-import requests
+import requests, time
 
 # --- CONFIGURACIÓN INICIAL ---
-API_BASE_URL = "http://10.0.9.227:8090"
+#API_BASE_URL = "http://10.0.9.227:8090" url produccion
+API_BASE_URL = "http://127.0.0.1:8000"
 
 # // FUNCIONES PARA CONSULTAR DB //
 def obtener_clientes():
@@ -53,7 +54,7 @@ class PDF(FPDF):
         self.set_xy(10, 25)
         self.multi_cell(90, 4, 
             "Domicilio: Reporteros 44, Col. Los Periodistas, CP: 45078, Zapopan, Jalisco.\n"
-            "Sitio Web: https://zeutica.com\n"
+            "www.zeutica.com\n"
             "Teléfono: 33-1299-5688\n"
             "E-mail: ventas1@zeutica.com\n"
             "Asesor: Cecilia Parra", 0, 'L')
@@ -101,7 +102,7 @@ def generar_pdf_zeutica(datos_cliente, items, forma_pago, comentario_seleccionad
 
 
     # Usamos str(valor or "") para asegurar que nunca pase un 'None'
-    fila_cliente("NOMBRE CLIENTE:", str(seleccion_nombre or "N/A"))
+    fila_cliente("NOMBRE:", str(seleccion_nombre or "N/A"))
     fila_cliente("EMPRESA:", str(datos_cliente.get('empresa') or "N/A"))
     fila_cliente("ATENCION:", str(datos_cliente.get('atencion') or "N/A"))
     fila_cliente("EMAIL:", str(datos_cliente.get('email') or "N/A"))
@@ -176,8 +177,8 @@ def generar_pdf_zeutica(datos_cliente, items, forma_pago, comentario_seleccionad
     pdf.multi_cell(0, 5, 
         f"1. FORMA DE PAGO: {forma_pago.upper()}\n"
         "2. COTIZACIÓN EN: PESO MEXICANO (MXN)\n"        
-        "3. PRECIOS SUJETOS A CAMBIO SIN PREVIO AVISO.", 0, 'L\n'
-        f"4. COMENTARIOS: {comentario_seleccionado}")
+        "3. PRECIOS SUJETOS A CAMBIO SIN PREVIO AVISO.\n"
+        f"4. COMENTARIOS: {comentario_seleccionado}"), 0, 'L\n'
 
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
@@ -254,21 +255,24 @@ if st.session_state.mostrar_formCotizacion:
                 })
                 st.rerun()
 
-        with col_lista:
-            # Cálculos de totales
-            subtotal = sum(item.get('total', 0) for item in st.session_state.items_cotizacion)
-            iva = subtotal * 0.16
-            total_general = subtotal + iva
-            limite_envio = 7000 * 1.16 
+        # Cálculos de totales (FUERA de columnas para mantener scope correcto)
+        subtotal = sum(item.get('total', 0) for item in st.session_state.items_cotizacion) if st.session_state.items_cotizacion else 0.0
+        iva = subtotal * 0.16
+        total_general = subtotal + iva
+        limite_envio = 7000 * 1.16 
+        costo_envio = 0.0
+        sku_envio = "ENV-ESTANDAR-01"
+
+        if total_general > limite_envio:
+            sku_envio = "ENV-GRATIS-ZEU"
             costo_envio = 0.0
-
-            if total_general > limite_envio:
-                sku_envio = "ENV-GRATIS-ZEU"
-                costo_envio = 0.0
-            else:
-                sku_envio = "ENV-ESTANDAR-01"
-                costo_envio = 300.00
-
+        else:
+            sku_envio = "ENV-ESTANDAR-01"
+            costo_envio = 300.00
+        
+        total_final = total_general + costo_envio
+        
+        with col_lista:
             if st.session_state.items_cotizacion:
                 df = pd.DataFrame(st.session_state.items_cotizacion)
                 st.dataframe(df, use_container_width=True, hide_index=True)
@@ -285,7 +289,6 @@ if st.session_state.mostrar_formCotizacion:
                     else:
                         st.warning(f"🚚 Envío: ${costo_envio:,.2f} ({sku_envio})")
             
-                    total_final = total_general + costo_envio
                     st.subheader(f"TOTAL: ${total_final:,.2f}")
 
                 if st.button("Limpiar Lista 🗑️"):
@@ -327,24 +330,26 @@ if st.session_state.mostrar_formCotizacion:
                         use_container_width=True
                     ):
                         payload = {
-                            "codigo": st.session_state.codigo_actual,
-                            "empresa": empresa_nombre,                        
+                            "codigo_cotizacion": st.session_state.codigo_actual,
+                            "empresa": empresa_nombre,
+                            "atencion": datos_cliente.get('contacto', ''),                        
                             "atencion": atencion,
                             "email": email,
                             "domicilio": domicilio,
                             "telefono": telefono,
-                            "subtotal": subtotal,
-                            "iva": iva,
-                            "total": total_final,
+                            "subtotal": round(subtotal, 2),
+                            "iva": round(iva, 2),                            
+                            "total": round(total_final, 2),
+                            "costo_envio": round(costo_envio, 2),
                             "forma_pago": forma_pago,
                             "comentarios": comentario_final,
                             "items": [
                                 {
                                 "sku": i['producto'].split(' (')[0],
                                 "nombre_producto": i['producto'].split(' (')[1].replace(')', ''),
-                                "cantidad": i['cantidad'],
-                                "precio_unitario": i['precio'],
-                                "total_linea": i['total']
+                                "cantidad": int(i['cantidad']),
+                                "precio_unitario": round(float(i['precio']), 2),
+                                "total_linea": round(float(i['total']), 2)
                                 } for i in st.session_state.items_cotizacion
                             ]
                         }
@@ -398,21 +403,24 @@ if st.session_state.mostrar_form:
                         key="editor_cotizaciones"
                     )
                     
-                    # 5. Botón para enviar los datos a la base de datos
+                    # 5. Botón para enviar los datos a la base de datos              
+
+
                     if st.button("Guardar Relación de Facturas 💾", type="primary"):
-                        # Filtramos el dataframe para obtener solo las filas donde escribieron algo
-                        modificados = df_editado[df_editado["relacion_factura"].str.strip() != ""]
-                        
+                        mask = df_editado["relacion_factura"].notna() & (df_editado["relacion_factura"].str.strip() != "")
+                        modificados = df_editado[mask]
+    
                         if not modificados.empty:
-                            # Convertimos a diccionario solo las columnas necesarias
-                            # NOTA: Cambia "codigo" por el nombre exacto de la columna que identifica tu cotización (ej. "id", "folio")
                             payload = modificados[["codigo_cotizacion", "relacion_factura"]].to_dict(orient="records")
-                            
                             res_update = requests.post(f"{API_BASE_URL}/zeutica/relacionFactura", json=payload)
-                            
+        
                             if res_update.status_code == 200:
+                                 
                                 st.success("✅ ¡Facturas vinculadas correctamente en la base de datos!")
-                                st.rerun() # Recarga para limpiar la vista
+                                time.sleep(2)     
+             
+            
+                                st.rerun() 
                             else:
                                 st.error("❌ Error al guardar en el servidor.")
                         else:

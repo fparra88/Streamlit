@@ -4,7 +4,8 @@ from datetime import datetime
 import random
 import pandas as pd
 
-API_BASE_URL = "http://10.0.9.227:8090"
+#API_BASE_URL = "http://10.0.9.227:8090" # url de produccion
+API_BASE_URL = "http://127.0.0.1:8000"
 
 # --- FUNCIONES DE DB ---
 def obtener_clientes():
@@ -40,32 +41,79 @@ if st.session_state.mostrar_formulario_venta:
         col_prod, col_carrito = st.columns([1, 1])
 
         # --- 1. SECCIÓN DE AGREGAR PRODUCTOS ---
+        # --- 1. SECCIÓN DE AGREGAR PRODUCTOS ---
         with col_prod:
             st.markdown("### 1. Seleccionar Productos")
             opciones_inv = obtener_inventario()
             
-            # Usamos un form pequeño SOLO para agregar a la lista
-            with st.form("form_agregar_item"):
-                seleccion = st.selectbox("Producto:", options=list(opciones_inv.keys()) if opciones_inv else [])
+            # 1. QUITAMOS el form para que la pantalla sea interactiva y reactiva
+            seleccion = st.selectbox("Producto:", options=list(opciones_inv.keys()) if opciones_inv else [])
+            
+            if seleccion and opciones_inv:
+                producto_data = opciones_inv[seleccion]
+                #st.write(producto_data)
+                stock_disp = int(producto_data.get('stock_bodega', 0))
                 
+                # 2. Extraemos los 3 precios de la base de datos
+                # ⚠️ IMPORTANTE: Cambia 'precio_a', 'precio_b', 'precio_c' por el nombre 
+                # exacto de las columnas como vienen desde tu base de datos de AWS
+                precio = float(producto_data.get('precio', 0.0))
+                precio_2 = float(producto_data.get('precio_2', 0.0))
+                precio_3 = float(producto_data.get('precio_3', 0.0))
+                
+                # 3. Selector visual de Lista de Precios
+                st.write("Selecciona Lista de Precios:")
+                tipo_precio = st.radio(
+                    "Oculto", # Etiqueta oculta
+                    options=["Precio A", "Precio B", "Precio C"],
+                    horizontal=True,
+                    label_visibility="collapsed"
+                )
+                
+                # Asignamos el valor en tiempo real dependiendo del botón seleccionado
+                if tipo_precio == "Precio A":
+                    precio_sugerido = precio
+                elif tipo_precio == "Precio B":
+                    precio_sugerido = precio_2
+                else:
+                    precio_sugerido = precio_3
+
                 c1, c2 = st.columns(2)
-                stock_disp = int(opciones_inv[seleccion].get('cantidad', 0)) if seleccion else 0
-                cantidad = c1.number_input("Cantidad:", min_value=1, max_value=max(1, stock_disp), step=1)
-                precio = c2.number_input("Precio Venta:", min_value=0.0, format="%.2f")
                 
-                agregar = st.form_submit_button("Añadir al Carrito 🛒")
+                # Límite de cantidad protegido por el stock real
+                cantidad = c1.number_input(
+                    "Cantidad:", 
+                    min_value=1, 
+                    max_value=max(1, stock_disp) if stock_disp > 0 else 1, 
+                    step=1
+                )
                 
-                if agregar and seleccion:
-                    producto_data = opciones_inv[seleccion]
-                    item = {
-                        "sku": producto_data['sku'],
-                        "producto": seleccion,
-                        "cantidad": cantidad,
-                        "precio_unitario": precio,
-                        "total_linea": cantidad * precio
-                    }
-                    st.session_state.carrito_ventas.append(item)
-                    st.rerun()
+                # 4. El input de precio ahora toma el valor sugerido automáticamente (pero permite editarlo manualmente si es necesario)
+                precio = c2.number_input(
+                    "Precio a aplicar:", 
+                    min_value=0.0, 
+                    value=float(precio_sugerido), 
+                    format="%.2f"
+                )
+                
+                # 5. Botón normal (fuera de formulario)
+                agregar = st.button("Añadir al Carrito 🛒", use_container_width=True, type="secondary")
+                
+                if agregar:
+                    if stock_disp <= 0:
+                        st.error("❌ Producto sin stock disponible.")
+                    elif cantidad > stock_disp:
+                        st.error("❌ La cantidad solicitada supera el inventario.")
+                    else:
+                        item = {
+                            "sku": producto_data['sku'],
+                            "producto": seleccion,
+                            "cantidad": cantidad,
+                            "precio_unitario": precio,
+                            "total_linea": cantidad * precio
+                        }
+                        st.session_state.carrito_ventas.append(item)
+                        st.rerun()
 
         # --- 2. SECCIÓN DEL CARRITO Y COBRO ---
         with col_carrito:
@@ -109,7 +157,7 @@ if st.session_state.mostrar_formulario_venta:
                             payload = {
                                 "id_venta": id_venta_generado, # <--- El nuevo ID de 10 dígitos
                                 "sku": item['sku'],
-                                "cantidad": item['cantidad'],
+                                "stock_bodega": item['cantidad'],
                                 "producto": item['producto'],
                                 "fecha": fecha_actual,
                                 "nombreComprador": nom_cliente,

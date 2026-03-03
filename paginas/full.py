@@ -2,9 +2,12 @@ import streamlit as st
 import requests
 import pandas as pd
 
+#API_BASE_URL = "http://10.0.9.227:8090" #url produccion
+API_BASE_URL = "http://127.0.0.1:8000"
+
 # --- CONFIGURACIÓN DE URLs (Modifícalas después) ---
-URL_GET_PRODUCTOS = "http://10.0.9.227:8090/zeutica/productos"
-URL_POST_TRASPASO = "http://10.0.9.227:8090/zeutica/traspaso"
+URL_GET_PRODUCTOS = f"{API_BASE_URL}/zeutica/productos"
+URL_POST_TRASPASO = f"{API_BASE_URL}/zeutica/traspaso"
 
 def obtener_inventario():
     """Obtiene los productos y crea un diccionario para el selectbox"""
@@ -36,44 +39,48 @@ def mostrar_traspasos():
         st.markdown("### 1. Seleccionar Producto")
         inventario = obtener_inventario()
         
-        with st.form("form_traspaso"):
-            opciones = list(inventario.keys())
-            seleccion = st.selectbox("Buscar Producto:", options=opciones if opciones else ["Cargando..."])
+        # 1. QUITAMOS EL 'with st.form()'
+        opciones = list(inventario.keys())
+        seleccion = st.selectbox("Buscar Producto:", options=opciones if opciones else ["Cargando..."])
+        
+        # Variables seguras
+        stock_actual = 0
+        sku_seleccionado = ""
+        desc_seleccionada = ""
+        
+        if seleccion and inventario:
+            producto_data = inventario[seleccion]
+            stock_actual = int(producto_data.get('cantidad', 0))
+            sku_seleccionado = producto_data.get('sku', producto_data.get('id', ''))
+            desc_seleccionada = producto_data.get('nombre', '')
             
-            # Variables seguras
-            stock_actual = 0
-            sku_seleccionado = ""
-            desc_seleccionada = ""
-            
-            if seleccion and inventario:
-                producto_data = inventario[seleccion]
-                stock_actual = int(producto_data.get('cantidad', 0))
-                sku_seleccionado = producto_data.get('sku', producto_data.get('id', ''))
-                desc_seleccionada = producto_data.get('nombre', '')
-                
-                st.info(f"📦 Stock disponible para traspaso: **{stock_actual}**")
+            st.info(f"📦 Stock disponible para traspaso: **{stock_actual}**")
 
-            # Input de cantidad a mover
-            cant_traspaso = st.number_input(
-                "Cantidad a traspasar:", 
-                min_value=1, 
-                max_value=max(1, stock_actual), # Evita que traspase más de lo que hay
-                step=1
-            )
-            
-            agregar = st.form_submit_button("Añadir a la lista ➕")
-            
-            if agregar and inventario:
-                if cant_traspaso > stock_actual:
-                    st.error("❌ No puedes traspasar más stock del que tienes disponible.")
-                else:
-                    item = {
-                        "sku": sku_seleccionado,
-                        "descripcion": desc_seleccionada,
-                        "cantidad": cant_traspaso
-                    }
-                    st.session_state.lista_traspasos.append(item)
-                    st.rerun()
+        # Input de cantidad a mover
+        cant_traspaso = st.number_input(
+            "Cantidad a traspasar:", 
+            min_value=1, 
+            # 2. Protección extra por si el stock es 0
+            max_value=max(1, stock_actual) if stock_actual > 0 else 1, 
+            step=1
+        )
+        
+        # 3. CAMBIAMOS A UN BOTÓN NORMAL
+        agregar = st.button("Añadir a la lista ➕", use_container_width=True, type="secondary")
+        
+        if agregar and inventario:
+            if stock_actual <= 0:
+                st.error("❌ No hay stock disponible para este producto.")
+            elif cant_traspaso > stock_actual:
+                st.error("❌ No puedes traspasar más stock del que tienes disponible.")
+            else:
+                item = {
+                    "sku": sku_seleccionado,
+                    "descripcion": desc_seleccionada,
+                    "cantidad": cant_traspaso
+                }
+                st.session_state.lista_traspasos.append(item)
+                st.rerun()
 
     # --- 2. COLUMNA: LISTA DE TRASPASOS Y EJECUCIÓN ---
     with col_lista:
