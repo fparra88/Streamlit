@@ -5,8 +5,8 @@ import base64
 from streamlit_option_menu import option_menu
 from datetime import datetime
 
-#API_BASE_URL = "http://10.0.9.227:8090" url produccion
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = "http://10.0.9.227:8090" #url produccion
+#API_BASE_URL = "http://127.0.0.1:8000"
 
   # Configuración de la página
 st.set_page_config(

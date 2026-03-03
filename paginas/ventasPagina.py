@@ -4,8 +4,8 @@ from datetime import datetime
 import random
 import pandas as pd
 
-#API_BASE_URL = "http://10.0.9.227:8090" # url de produccion
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = "http://10.0.9.227:8090" # url de produccion
+#API_BASE_URL = "http://127.0.0.1:8000"
 
 # --- FUNCIONES DE DB ---
 def obtener_clientes():
