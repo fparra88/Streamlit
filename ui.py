@@ -4,9 +4,11 @@ from streamlit_cookies_controller import CookieController
 import base64
 from streamlit_option_menu import option_menu
 from datetime import datetime
+from streamlit_javascript import st_javascript
 
 API_BASE_URL = "http://10.0.9.227:8090" #url produccion
 #API_BASE_URL = "http://127.0.0.1:8000"
+cliente_hora = st_javascript("new Date().toLocaleString()")
 
   # Configuración de la página
 st.set_page_config(
@@ -45,6 +47,8 @@ def validar_acceso(user, pw):
         if res.status_code == 200:
             st.session_state.autenticado = True
             st.session_state.usuario_nombre = usuario
+            st.session_state.ip = "http://10.0.9.227:8090" #url produccion
+            #st.session_state.ip = "http://127.0.0.1:8000"
             controller.set("zeutica_session", usuario, max_age=1800)
             st.success("¡Bienvenido!")
             st.rerun()
@@ -137,7 +141,7 @@ else:
     </style>
     <div class="main-banner">
         <h1>Sistema de Inventario Zeutica</h1>
-        <p>Hola {st.session_state.get("usuario_nombre", "usuario")}, Fecha: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}</p>
+        <p>Hola {st.session_state.get(f"usuario_nombre", "usuario")}, Fecha: {cliente_hora}</p>
     </div>
     """, unsafe_allow_html=True)
 

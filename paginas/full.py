@@ -2,8 +2,9 @@ import streamlit as st
 import requests
 import pandas as pd
 
-API_BASE_URL = "http://10.0.9.227:8090" #url produccion
+#API_BASE_URL = "http://10.0.9.227:8090" #url produccion
 #API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = st.session_state.ip
 
 # --- CONFIGURACIÓN DE URLs (Modifícalas después) ---
 URL_GET_PRODUCTOS = f"{API_BASE_URL}/zeutica/productos"
@@ -50,7 +51,7 @@ def mostrar_traspasos():
         
         if seleccion and inventario:
             producto_data = inventario[seleccion]
-            stock_actual = int(producto_data.get('cantidad', 0))
+            stock_actual = int(producto_data.get('stock_bodega', 0))
             sku_seleccionado = producto_data.get('sku', producto_data.get('id', ''))
             desc_seleccionada = producto_data.get('nombre', '')
             
@@ -77,7 +78,7 @@ def mostrar_traspasos():
                 item = {
                     "sku": sku_seleccionado,
                     "descripcion": desc_seleccionada,
-                    "cantidad": cant_traspaso
+                    "stock_bodega": cant_traspaso
                 }
                 st.session_state.lista_traspasos.append(item)
                 st.rerun()
@@ -99,7 +100,7 @@ def mostrar_traspasos():
             if c1.button("✅ Confirmar Traspaso", type="primary", use_container_width=True):
                 # Preparamos el JSON para la API
                 payload = {
-                    "usuario": st.session_state.get("usuario_nombre", "Admin"),
+                    "usuario": st.session_state.get("usuario_nombre", "Error"),
                     "movimientos": st.session_state.lista_traspasos
                 }
                 

@@ -2,8 +2,9 @@ import streamlit as st
 import requests
 import pandas as pd
 
-API_BASE_URL = "http://10.0.9.227:8090" # url produccion
+#API_BASE_URL = "http://10.0.9.227:8090" # url produccion
 #API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = st.session_state.ip
 
 st.header("Plataforma de registro de gastos Operativos")
 st.info("Ingresa los gastos realizados para la operacion")

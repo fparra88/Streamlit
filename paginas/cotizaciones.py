@@ -5,8 +5,9 @@ from datetime import datetime
 import requests, time
 
 # --- CONFIGURACIÓN INICIAL ---
-API_BASE_URL = "http://10.0.9.227:8090" #url produccion
+#API_BASE_URL = "http://10.0.9.227:8090" #url produccion
 #API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = st.session_state.ip
 
 # // FUNCIONES PARA CONSULTAR DB //
 def obtener_clientes():
