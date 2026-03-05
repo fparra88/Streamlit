@@ -78,7 +78,7 @@ class PDF(FPDF):
         self.set_font('Arial', 'B', 8)
         self.cell(0, 5, "Si tienes alguna pregunta por favor contáctanos", 0, 1, 'C')
         self.set_font('Arial', '', 8)
-        self.cell(0, 5, "Telf: 33-1299-5688 / E-mail: ventas1@zeutica.com", 0, 1, 'C')
+        self.cell(0, 5, "Tel: 33-1299-5688 / E-mail: ventas1@zeutica.com", 0, 1, 'C')
         self.cell(0, 5, f'Página {self.page_no()}', 0, 0, 'R')
 
 def generar_pdf_zeutica(datos_cliente, items, forma_pago, comentario_seleccionado, costo_envio):
@@ -261,16 +261,25 @@ if st.session_state.mostrar_formCotizacion:
         iva = subtotal * 0.16
         total_general = subtotal + iva
         limite_envio = 7000 * 1.16 
-        costo_envio = 0.0
         sku_envio = "ENV-ESTANDAR-01"
-
+        
+        # Precio base del envío
+        precio_envio_base = 300.00
+        
+        # Lógica de envío gratis o pagado
         if total_general > limite_envio:
             sku_envio = "ENV-GRATIS-ZEU"
-            costo_envio = 0.0
+            precio_envio_base = 0.0
         else:
             sku_envio = "ENV-ESTANDAR-01"
-            costo_envio = 300.00
+            precio_envio_base = 300.00
         
+        # Inicializar estado para incluir envío
+        if "incluir_envio" not in st.session_state:
+            st.session_state.incluir_envio = True
+        
+        # Calcular costo final según la opción del usuario
+        costo_envio = precio_envio_base if st.session_state.incluir_envio else 0.0
         total_final = total_general + costo_envio
         
         with col_lista:
@@ -307,6 +316,14 @@ if st.session_state.mostrar_formCotizacion:
             
         forma_pago = f1.text_input("Forma de Pago", value="CONTADO")        
         comentario = f2.selectbox("Comentarios / Envío", opciones_comentarios)
+        
+        # Opción para incluir o no el costo de envío
+        st.markdown("---")
+        st.session_state.incluir_envio = st.checkbox(
+            "✓ Incluir Costo de Envío en la Cotización", 
+            value=st.session_state.incluir_envio,
+            help=f"Si está marcado, se agregará el costo de envío (${precio_envio_base:,.2f}) a la cotización"
+        )
 
         if comentario == "OTROS...":
             comentario_final = st.text_area("Escribe el comentario personalizado:")
