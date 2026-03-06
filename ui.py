@@ -6,8 +6,8 @@ from streamlit_option_menu import option_menu
 from datetime import datetime
 from streamlit_javascript import st_javascript
 
-API_BASE_URL = "http://10.0.9.227:8090" #url produccion
-#API_BASE_URL = "http://127.0.0.1:8000"
+#API_BASE_URL = "http://10.0.9.227:8090" #url produccion
+API_BASE_URL = "http://127.0.0.1:8000"
 cliente_hora = st_javascript("new Date().toLocaleString()")
 
   # Configuración de la página
@@ -47,8 +47,8 @@ def validar_acceso(user, pw):
         if res.status_code == 200:
             st.session_state.autenticado = True
             st.session_state.usuario_nombre = usuario
-            st.session_state.ip = "http://10.0.9.227:8090" #url produccion
-            #st.session_state.ip = "http://127.0.0.1:8000"
+            #st.session_state.ip = "http://10.0.9.227:8090" #url produccion
+            st.session_state.ip = "http://127.0.0.1:8000"
             controller.set("zeutica_session", usuario, max_age=1800)
             st.success("¡Bienvenido!")
             st.rerun()
@@ -147,8 +147,8 @@ else:
 
     selected = option_menu(
     menu_title=None,  # No necesitamos título de menú
-    options=["Inventario", "Ventas", "Cotizaciones", "Clientes", "Reportes", "Traspaso FULL", "Gastos Operativos"], # Opciones del menú
-    icons=["archive", "cash-stack", "file-earmark-text", "people", "archive","archive", "people"], # Iconos de bootstrap
+    options=["Inventario", "Ventas", "Cotizaciones", "Clientes", "Reportes", "Traspaso FULL", "Gastos Operativos", "Compras"], # Opciones del menú
+    icons=["archive", "cash-stack", "file-earmark-text", "people", "archive","archive", "people", "cash-stack"], # Iconos de bootstrap
     menu_icon="cast", 
     default_index=0, 
     orientation="horizontal",
@@ -200,7 +200,18 @@ else:
         # Lee y ejecuta full        
         with open("paginas/gastos.py", encoding="utf-8") as f:
             exec(f.read())
-        
+
+    elif selected == "Compras":
+        if st.session_state.usuario_nombre == "fparra":
+            # Lee y ejecuta full        
+            with open("paginas/gastos.py", encoding="utf-8") as f:
+                exec(f.read())
+        else:
+            # 3. Mensaje de error persistente
+                st.error("### 🛑 ACCESO RESTRINGIDO")
+                st.subheader("Sección: Compras")
+                st.write(f"Lo sentimos **{st.session_state.get('usuario_nombre', 'Usuario')}**, no tienes los permisos necesarios para visualizar esta información.")
+
 
     with st.sidebar: # datos al costado
         st.image("logo.png", use_container_width=True)

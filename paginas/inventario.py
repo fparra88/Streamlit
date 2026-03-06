@@ -66,6 +66,7 @@ if st.button('Visualizar Inventario'):
         st.error("Error al conectar con la API")
 
 st.divider(width='stretch')
+st.warning("Seccion Exclusiva de GERENCIA!!")
 
 # --- SECCIÓN 2: Editar Productos (Solo Gerencia) ---
 # Inicializar estado del editor
@@ -80,7 +81,7 @@ if st.session_state.usuario_nombre == "fparra":
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.write("### Gestión de Productos")
+        st.write("### Administrador de productos.")
     
     with col2:
         if st.button('Editar Productos', use_container_width=True):
@@ -129,7 +130,7 @@ if st.session_state.usuario_nombre == "fparra":
                             
                             # Hacer POST al endpoint
                             save_response = requests.post(
-                                f"{API_BASE_URL}/productos/editados",
+                                f"{API_BASE_URL}/zeutica/productos/editados",
                                 json=payload
                             )
                         
@@ -153,3 +154,98 @@ if st.session_state.usuario_nombre == "fparra":
                     st.session_state.show_editor = False
                     st.session_state.productos_data = None
                     st.rerun()
+
+st.divider(width='stretch')
+
+# --- SECCIÓN 3: Crear Nuevo Producto (Solo Gerencia) ---
+# Inicializar estado del formulario de nuevo producto
+if "show_form_nuevo" not in st.session_state:
+    st.session_state.show_form_nuevo = False
+if "mensaje_nuevo_exito" not in st.session_state:
+    st.session_state.mensaje_nuevo_exito = False
+
+if st.session_state.usuario_nombre == "fparra":
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.write("### Crear Nuevo Producto.")
+    
+    with col2:
+        if st.button('➕ Nuevo Producto', use_container_width=True):
+            st.session_state.show_form_nuevo = True
+    
+    # Mostrar mensaje de éxito si aplica
+    if st.session_state.mensaje_nuevo_exito:
+        st.success("✅ Producto creado exitosamente")
+        st.session_state.mensaje_nuevo_exito = False
+    
+    # Mostrar formulario SOLO si está activo
+    if st.session_state.show_form_nuevo:
+        st.info("Completa los datos del nuevo producto")
+        
+        # Crear columnas para mejor presentación
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            sku = st.text_input("SKU", placeholder="Ej: COFPLI-001")
+            nombre = st.text_input("Nombre", placeholder="Ej: Producto XYZ")
+            categoria = st.text_input("Categoría", placeholder="Ej: COFIA")
+            medida = st.text_input("Medida", placeholder="Ej: UNIDAD, PZA")
+            ubicacion = st.text_input("Ubicación", placeholder="Ej: CEDIS - Estante 5")
+        
+        with col2:
+            stock_minimo = st.number_input("Stock Mínimo", min_value=50, value=300, format="%d")
+            numero_referencia = st.number_input("Número de Referencia", min_value=0, value=0, format="%d")
+            costo_total = st.number_input("Costo Total", min_value=0.0, value=0.0, format="%.2f")
+            precio = st.number_input("Precio", min_value=0.0, value=0.0, format="%.2f")
+            precio_2 = st.number_input("Precio_2", min_value=0.0, value=0.0, format="%.2f")
+            precio_3 = st.number_input("Precio_3", min_value=0.0, value=0.0, format="%.2f")
+        
+        # Botones de acción
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
+        
+        with col_btn1:
+            if st.button("✅ Crear Producto", use_container_width=True):
+                # Validar que al menos los campos básicos estén llenos
+                if not sku or not nombre or not categoria:
+                    st.error("❌ Por favor completa SKU, Nombre y Categoría")
+                else:
+                    try:
+                        with st.spinner('Creando producto...'):
+                            payload = {
+                                "sku": sku,
+                                "nombre": nombre,
+                                "categoria": categoria,
+                                "medida": medida,
+                                "ubicacion": ubicacion,
+                                "stock_minimo": stock_minimo,
+                                "numero_referencia": numero_referencia,
+                                "costo_total": costo_total,
+                                "precio": precio,
+                                "precio_2": precio_2,
+                                "precio_3": precio_3
+                            }
+                            
+                            # Hacer POST al endpoint
+                            response = requests.post(
+                                f"{API_BASE_URL}/zeutica/producto/nuevo",
+                                json=payload
+                            )
+                        
+                        if response.status_code == 200 or response.status_code == 201:
+                            st.session_state.mensaje_nuevo_exito = True
+                            st.session_state.show_form_nuevo = False
+                            st.rerun()
+                        else:
+                            st.error(f"Error al crear producto: Código {response.status_code}")
+                            st.error(response.text)
+                    
+                    except requests.exceptions.RequestException as e:
+                        st.error(f"Error de conexión: {e}")
+                    except Exception as e:
+                        st.error(f"Error inesperado: {e}")
+        
+        with col_btn2:
+            if st.button("❌ Cancelar", use_container_width=True):
+                st.session_state.show_form_nuevo = False
+                st.rerun()

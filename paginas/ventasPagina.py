@@ -4,8 +4,6 @@ from datetime import datetime
 import random
 import pandas as pd
 
-#API_BASE_URL = "http://10.0.9.227:8090" # url de produccion
-#API_BASE_URL = "http://127.0.0.1:8000"
 API_BASE_URL = st.session_state.ip
 
 # --- FUNCIONES DE DB ---
@@ -58,15 +56,16 @@ if st.session_state.mostrar_formulario_venta:
                 # 2. Extraemos los 3 precios de la base de datos
                 # ⚠️ IMPORTANTE: Cambia 'precio_a', 'precio_b', 'precio_c' por el nombre 
                 # exacto de las columnas como vienen desde tu base de datos de AWS
-                precio = float(producto_data.get('precio', 0.0))
-                precio_2 = float(producto_data.get('precio_2', 0.0))
-                precio_3 = float(producto_data.get('precio_3', 0.0))
-                
+                precio = float(producto_data.get('precio') or 0.0)
+                precio_2 = float(producto_data.get('precio_2') or 0.0)
+                precio_3 = float(producto_data.get('precio_3') or 0.0)
+                precio_amazon = float(producto_data.get('precio_amazon') or 0.0)
+                st.info(producto_data.get("precio_amazon"))
                 # 3. Selector visual de Lista de Precios
                 st.write("Selecciona Lista de Precios:")
                 tipo_precio = st.radio(
                     "Oculto", # Etiqueta oculta
-                    options=["Precio A", "Precio B", "Precio C"],
+                    options=["Precio A", "Precio B", "Precio C", "Precio Amazon"],
                     horizontal=True,
                     label_visibility="collapsed"
                 )
@@ -76,8 +75,10 @@ if st.session_state.mostrar_formulario_venta:
                     precio_sugerido = precio
                 elif tipo_precio == "Precio B":
                     precio_sugerido = precio_2
-                else:
+                elif tipo_precio == "Precio C":
                     precio_sugerido = precio_3
+                else:
+                    precio_sugerido = precio_amazon
 
                 c1, c2 = st.columns(2)
                 
