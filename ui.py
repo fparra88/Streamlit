@@ -46,7 +46,7 @@ def validar_acceso(user, pw):
         res = requests.post(f"{API_BASE_URL}/login", json={"usuario": user, "password": pw})
         if res.status_code == 200:
             st.session_state.autenticado = True
-            #st.session_state.usuario_nombre = usuario
+            st.session_state.usuario_nombre = usuario
             st.session_state.ip = "http://10.0.9.227:8090" #url produccion
             #st.session_state.ip = "http://127.0.0.1:8000"
             controller.set("zeutica_session", usuario, max_age=1800)
@@ -202,7 +202,7 @@ else:
             exec(f.read())
 
     elif selected == "Compras":
-        if st.session_state.usuario_nombre == "fparra":
+        if st.session_state.usuario_nombre == "gerencia":
             # Lee y ejecuta full        
             with open("paginas/gastos.py", encoding="utf-8") as f:
                 exec(f.read())
