@@ -5,8 +5,8 @@ import base64
 from streamlit_option_menu import option_menu
 from streamlit_javascript import st_javascript
 
-#API_BASE_URL = "http://10.0.9.227:8090" #url produccion
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = "http://10.0.9.227:8090" #url produccion
+#API_BASE_URL = "http://127.0.0.1:8000"
 cliente_hora = st_javascript("new Date().toLocaleString()")
 
   # Configuración de la página
@@ -46,8 +46,8 @@ def validar_acceso(user, pw):
         if res.status_code == 200:
             st.session_state.autenticado = True
             st.session_state.usuario_nombre = usuario
-            #st.session_state.ip = "http://10.0.9.227:8090" #url produccion
-            st.session_state.ip = "http://127.0.0.1:8000"
+            st.session_state.ip = "http://10.0.9.227:8090" #url produccion
+            #st.session_state.ip = "http://127.0.0.1:8000"
             controller.set("zeutica_session", usuario, max_age=1800)
             st.success("¡Bienvenido!")
             st.rerun()
