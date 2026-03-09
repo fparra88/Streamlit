@@ -3,7 +3,6 @@ import requests
 from streamlit_cookies_controller import CookieController
 import base64
 from streamlit_option_menu import option_menu
-from datetime import datetime
 from streamlit_javascript import st_javascript
 
 API_BASE_URL = "http://10.0.9.227:8090" #url produccion
@@ -147,8 +146,8 @@ else:
 
     selected = option_menu(
     menu_title=None,  # No necesitamos título de menú
-    options=["Inventario", "Ventas", "Cotizaciones", "Clientes", "Reportes", "Traspaso FULL", "Gastos Operativos", "Compras"], # Opciones del menú
-    icons=["archive", "cash-stack", "file-earmark-text", "people", "archive","archive", "people", "cash-stack"], # Iconos de bootstrap
+    options=["Dashboard","Inventario", "Ventas", "Cotizaciones", "Clientes", "Reportes", "Traspaso FULL", "Gastos Operativos", "Compras"], # Opciones del menú
+    icons=["people","archive", "cash-stack", "file-earmark-text", "people", "archive","archive", "people", "cash-stack"], # Iconos de bootstrap
     menu_icon="cast", 
     default_index=0, 
     orientation="horizontal",
@@ -166,7 +165,17 @@ else:
     )
 
     # --- 3. LÓGICA DE PÁGINAS ---
-    if selected == "Inventario":
+    if selected == "Dashboard":
+        if st.session_state.usuario_nombre == "gerencia":
+            with open("paginas/dashboard.py", encoding="utf-8") as f:
+                exec(f.read())
+        else:
+            # 3. Mensaje de error persistente
+                st.error("### 🛑 ACCESO RESTRINGIDO")
+                st.subheader("Sección: Dashboard")
+                st.write(f"Lo sentimos **{st.session_state.get('usuario_nombre', 'Usuario')}**, no tienes los permisos necesarios para visualizar esta información.")
+
+    elif selected == "Inventario":
         # Lee y ejecuta el archivo de inventario
         with open("paginas/inventario.py", encoding="utf-8") as f:
             exec(f.read())
@@ -204,7 +213,7 @@ else:
     elif selected == "Compras":
         if st.session_state.usuario_nombre == "gerencia":
             # Lee y ejecuta full        
-            with open("paginas/gastos.py", encoding="utf-8") as f:
+            with open("paginas/compras.py", encoding="utf-8") as f:
                 exec(f.read())
         else:
             # 3. Mensaje de error persistente
@@ -229,7 +238,7 @@ else:
             st.session_state.autenticado = False
             st.rerun()
 
-        
+    
    
 
     

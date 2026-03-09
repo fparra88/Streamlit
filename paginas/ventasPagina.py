@@ -40,7 +40,6 @@ if st.session_state.mostrar_formulario_venta:
         col_prod, col_carrito = st.columns([1, 1])
 
         # --- 1. SECCIÓN DE AGREGAR PRODUCTOS ---
-        # --- 1. SECCIÓN DE AGREGAR PRODUCTOS ---
         with col_prod:
             st.markdown("### 1. Seleccionar Productos")
             opciones_inv = obtener_inventario()
@@ -160,6 +159,7 @@ if st.session_state.mostrar_formulario_venta:
                                 "id_venta": id_venta_generado, # <--- El nuevo ID de 10 dígitos
                                 "sku": item['sku'],
                                 "stock_bodega": item['cantidad'],
+                                "precio": item['precio_unitario'],
                                 "producto": item['producto'],
                                 "fecha": fecha_actual,
                                 "nombreComprador": nom_cliente,
