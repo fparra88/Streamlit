@@ -374,6 +374,7 @@ if st.session_state.mostrar_formCotizacion:
         
                         res = requests.post(f"{API_BASE_URL}/zeutica/cotizaciones/guardar", json=payload)
                         if res.status_code == 200:
+                            st.balloons()
                             st.success(f"✅ Cotización {st.session_state.codigo_actual} guardada.")
                             st.session_state.items_cotizacion = []
                             st.session_state.codigo_actual = "000"

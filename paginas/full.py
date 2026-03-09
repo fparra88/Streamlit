@@ -2,8 +2,6 @@ import streamlit as st
 import requests
 import pandas as pd
 
-#API_BASE_URL = "http://10.0.9.227:8090" #url produccion
-#API_BASE_URL = "http://127.0.0.1:8000"
 API_BASE_URL = st.session_state.ip
 
 # --- CONFIGURACIÓN DE URLs (Modifícalas después) ---
@@ -79,6 +77,7 @@ def mostrar_traspasos():
                     "sku": sku_seleccionado,
                     "descripcion": desc_seleccionada,
                     "stock_bodega": cant_traspaso
+                    
                 }
                 st.session_state.lista_traspasos.append(item)
                 st.rerun()
@@ -109,8 +108,11 @@ def mostrar_traspasos():
                         res = requests.post(URL_POST_TRASPASO, json=payload)
                     
                         if res.status_code == 200:
+                            st.balloons()
                             st.success("✅ Traspaso completado con éxito.")
                             st.session_state.lista_traspasos = [] # Limpiamos memoria
+                            import time
+                            time.sleep(2)
                             st.rerun()
                         else:
                             st.error(f"❌ Error en el servidor: {res.text}")

@@ -3,8 +3,6 @@ import requests
 import pandas as pd
 import math
 
-#API_BASE_URL = "http://10.0.9.227:8090" # url produccion
-#API_BASE_URL = "http://127.0.0.1:8000"
 API_BASE_URL = st.session_state.ip
 
 def sanitize_row_data(row):
@@ -139,6 +137,7 @@ def app():
 
                 # 4. Manejar la respuesta del servidor
                 if respuesta.status_code == 200:
+                    st.balloons()
                     data_resp = respuesta.json()
                     st.success(f"✅ ¡Cliente registrado! ID asignado: {data_resp.get('id')}")
                     # Como usamos clear_on_submit=True, el formulario se limpiará solo
@@ -173,6 +172,7 @@ if __name__ == "__main__":
                 df = pd.json_normalize(raw_json) 
             
                 # Guardamos el DataFrame en el estado de la sesión
+                st.balloons()
                 st.session_state.clientes_data = df
                 st.session_state.mostrar_editor = True
                 st.success("¡Lista de clientes cargada!")
@@ -247,6 +247,7 @@ if st.session_state.mostrar_editor and st.session_state.clientes_data is not Non
                             st.write(f"  - {err}")
                             
                     if exitosos > 0:
+                        st.balloons()
                         st.success(f"✅ {exitosos} cliente(s) actualizado(s) correctamente.")
                         # Sincronizamos los datos base para que el editor "limpie" el historial de cambios
                         st.session_state.clientes_data = edited_df

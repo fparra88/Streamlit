@@ -135,7 +135,7 @@ if st.session_state.mostrar_formulario_venta:
                 diccionario_clientes = obtener_clientes()
                 nom_cliente = st.selectbox("Cliente:", list(diccionario_clientes.keys()))
                 medio = st.selectbox("Plataforma:", ["Mercado Libre", "Amazon", "Directo", "Local"])
-                met_pago = st.text_input("Método de pago (Ej. Tarjeta, Efectivo):")
+                met_pago = st.text_input("Método de pago (Ej. Tarjeta, Efectivo):",value="CONTADO")
                 
                 col_btn1, col_btn2 = st.columns(2)
                 confirmar = col_btn1.button("✅ Procesar Venta", type="primary")
@@ -174,8 +174,11 @@ if st.session_state.mostrar_formulario_venta:
                                 st.error(f"Fallo al guardar: {item['sku']}")
 
                     if errores == 0:
-                        st.success(f"✅ Venta {id_venta_generado} registrada con éxito.")
                         st.balloons()
+                        st.success(f"✅ Venta {id_venta_generado} registrada con éxito.", icon='🎉')
+                        
                         st.session_state.carrito_ventas = [] # Limpiamos memoria
                         st.session_state.mostrar_formulario_venta = False
+                        import time
+                        time.sleep(2)
                         st.rerun()
