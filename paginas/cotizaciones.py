@@ -4,9 +4,6 @@ from fpdf import FPDF
 from datetime import datetime
 import requests, time
 
-# --- CONFIGURACIÓN INICIAL ---
-#API_BASE_URL = "http://10.0.9.227:8090" #url produccion
-#API_BASE_URL = "http://127.0.0.1:8000"
 API_BASE_URL = st.session_state.ip
 
 # // FUNCIONES PARA CONSULTAR DB //
@@ -392,7 +389,7 @@ if st.session_state.mostrar_formCotizacion:
 
 import pandas as pd
 
-# --- SECCIÓN DE CONSULTA ---
+# --- SECCIÓN DE CONSULTA --- 
 st.button("Consulta Cotización ➕", on_click=abrir_form, key="btn_consulta_coti_principal")
 
 if st.session_state.mostrar_form:
@@ -410,8 +407,9 @@ if st.session_state.mostrar_form:
                     if "relacion_factura" not in df.columns:
                         df["relacion_factura"] = ""
                         
-                    # 3. Identificamos todas las columnas originales para bloquearlas
-                    columnas_bloqueadas = [col for col in df.columns if col != "relacion_factura"]
+                    # 3. Identificamos todas las columnas originales para 
+                    columnas_permitidas = ["relacion_factura", "metodo_pago", "fecha_pago"]
+                    columnas_bloqueadas = [col for col in df.columns if col not in columnas_permitidas]
                     
                     # 4. Mostramos el editor de datos interactivo
                     df_editado = st.data_editor(

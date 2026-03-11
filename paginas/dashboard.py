@@ -5,6 +5,7 @@ import requests
 from datetime import date
 import calendar
 import logging
+import time
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -195,5 +196,22 @@ def mostrar_dashboard_gerencia():
     with st.expander("📋 Ver datos detallados de ventas"):
         st.dataframe(df_ventas, use_container_width=True, hide_index=True)
 
+
+# Creamos el contenedor vacío
+placeholder = st.empty()
+
+# Usamos el contenedor para mostrar algo temporal
+with placeholder.container():
+    st.success("🔓 Acceso verificado para: Gerencia")
+    st.info("Cargando métricas confidenciales...")
+    
+    # Simulamos una carga de 3 segundos
+    bar = st.progress(0)
+    for i in range(100):
+        time.sleep(0.02)
+        bar.progress(i + 1)
+
+# Borramos todo lo anterior para que no ocupe espacio
+placeholder.empty()
 
 mostrar_dashboard_gerencia()

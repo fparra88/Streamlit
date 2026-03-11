@@ -231,8 +231,7 @@ else:
         if st.button("Limpiar Caché"):
             st.cache_data.clear()
         st.sidebar.info("Panel Gestion Procesos")
-        st.sidebar.info(f"Usuario logeado: {st.session_state.get("usuario_nombre", "usuario")}")    
-        #st.sidebar.button("Cerrar Sesión", on_click=lambda: st.session_state.update({"autenticado": False}))
+        st.sidebar.info(f"Usuario logeado: {st.session_state.get("usuario_nombre", "usuario")}") 
         if st.sidebar.button("Cerrar Sesión"):
             controller.remove("zeutica_session")
             st.session_state.autenticado = False
