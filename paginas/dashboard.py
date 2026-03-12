@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 API_BASE_URL = st.session_state.ip
 
+toks = {
+            "Authorization": f"Bearer {st.session_state.token}"
+        }
+
 def obtener_ventas_mes():
     """
     Obtiene las ventas del mes actual desde el backend.
@@ -36,7 +40,7 @@ def obtener_ventas_mes():
         
         # Realizar solicitud al backend
         url = f"{API_BASE_URL}/zeutica/ventas/{f1}/{f2}"
-        respuesta = requests.get(url, timeout=10)
+        respuesta = requests.get(url, headers= toks ,timeout=10)
         
         if respuesta.status_code == 200:
             datos = respuesta.json()

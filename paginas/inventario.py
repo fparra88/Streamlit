@@ -3,9 +3,13 @@ import requests
 
 API_BASE_URL = st.session_state.ip
 
+toks = {
+            "Authorization": f"Bearer {st.session_state.token}"
+        }
+
 def obtener_skus():
-    try:
-        response = requests.get(f"{API_BASE_URL}/zeutica/productos") 
+    try:        
+        response = requests.get(f"{API_BASE_URL}/zeutica/productos",headers= toks) 
         if response.status_code == 200:
             data = response.json() 
 
@@ -23,7 +27,7 @@ with st.form("consulta_sku"): # Formulario para consultar SKU en DATABASE
         try:
             # Indicador de carga (Spinner)
             with st.spinner('Buscando en la base de datos...'):
-                response = requests.get(f"{API_BASE_URL}/zeutica/producto/sku/{seleccion}")
+                response = requests.get(f"{API_BASE_URL}/zeutica/producto/sku/{seleccion}",headers= toks)
                 
             # 3. Manejo de la respuesta
             if response.status_code == 200:
@@ -49,7 +53,7 @@ with st.form("consulta_sku"): # Formulario para consultar SKU en DATABASE
 
 # --- SECCIÓN 1: Visualizar Inventario ---
 if st.button('Visualizar Inventario'):
-    data = requests.get(f"{API_BASE_URL}/zeutica/productos")
+    data = requests.get(f"{API_BASE_URL}/zeutica/productos", headers= toks)
     if data.status_code == 200:
         st.dataframe(
             data.json(),
@@ -89,7 +93,7 @@ if st.session_state.usuario_nombre == "gerencia":
             try:
                 # Obtener todos los productos
                 with st.spinner('Cargando productos...'):
-                    response = requests.get(f"{API_BASE_URL}/zeutica/productos")
+                    response = requests.get(f"{API_BASE_URL}/zeutica/productos", headers= toks)
                 
                 if response.status_code == 200:
                     st.session_state.productos_data = response.json()
@@ -130,7 +134,7 @@ if st.session_state.usuario_nombre == "gerencia":
                             
                             # Hacer POST al endpoint
                             save_response = requests.post(
-                                f"{API_BASE_URL}/zeutica/productos/editados",
+                                f"{API_BASE_URL}/zeutica/productos/editados", headers= toks,
                                 json=payload
                             )
                         
@@ -228,7 +232,7 @@ if st.session_state.usuario_nombre == "gerencia":
                             
                             # Hacer POST al endpoint
                             response = requests.post(
-                                f"{API_BASE_URL}/zeutica/producto/nuevo",
+                                f"{API_BASE_URL}/zeutica/producto/nuevo", headers= toks,
                                 json=payload
                             )
                         

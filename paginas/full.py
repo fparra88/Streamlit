@@ -4,6 +4,10 @@ import pandas as pd
 
 API_BASE_URL = st.session_state.ip
 
+toks = {
+            "Authorization": f"Bearer {st.session_state.token}"
+        }
+
 # --- CONFIGURACIÓN DE URLs (Modifícalas después) ---
 URL_GET_PRODUCTOS = f"{API_BASE_URL}/zeutica/productos"
 URL_POST_TRASPASO = f"{API_BASE_URL}/zeutica/traspaso"
@@ -11,7 +15,7 @@ URL_POST_TRASPASO = f"{API_BASE_URL}/zeutica/traspaso"
 def obtener_inventario():
     """Obtiene los productos y crea un diccionario para el selectbox"""
     try:
-        res = requests.get(URL_GET_PRODUCTOS)
+        res = requests.get(URL_GET_PRODUCTOS, headers= toks)
         if res.status_code == 200:
             productos = res.json()
             # Creamos la llave visual: "SKU - Descripción (Stock: X)"
@@ -105,7 +109,7 @@ def mostrar_traspasos():
                 
                 try:
                     with st.spinner("Ejecutando traspaso en base de datos..."):
-                        res = requests.post(URL_POST_TRASPASO, json=payload)
+                        res = requests.post(URL_POST_TRASPASO, headers= toks ,json=payload)
                     
                         if res.status_code == 200:
                             st.balloons()

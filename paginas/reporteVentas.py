@@ -4,6 +4,10 @@ from datetime import datetime
 
 API_BASE_URL = st.session_state.ip
 
+toks = {
+            "Authorization": f"Bearer {st.session_state.token}"
+        }
+
 st.header("Reporte de ventas plataformas por fecha")
 st.info("Selecciona un inicio y final de fecha para generar reporte de Ventas")
 
@@ -25,7 +29,7 @@ if submit_reporte:
     else:
         try:
             with st.spinner("Consultando servidor en AWS..."):
-                response = requests.get(f"{API_BASE_URL}/zeutica/ventas/{fecha_inicio}/{fecha_fin}")
+                response = requests.get(f"{API_BASE_URL}/zeutica/ventas/{fecha_inicio}/{fecha_fin}", headers= toks)
             
             if response.status_code == 200:                
                 ventas = response.json()
@@ -53,7 +57,7 @@ rep_traspasos = st.button("Consulta de Traspasos")
 if rep_traspasos:
     try:
         with st.spinner("Consultando servidor AWS..."):
-            res = requests.get(f"{API_BASE_URL}/zeutica/traspasos/reporte")
+            res = requests.get(f"{API_BASE_URL}/zeutica/traspasos/reporte", headers= toks)
         if res.status_code == 200:
             data = res.json()
 

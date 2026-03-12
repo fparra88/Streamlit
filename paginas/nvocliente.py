@@ -5,6 +5,10 @@ import math
 
 API_BASE_URL = st.session_state.ip
 
+toks = {
+            "Authorization": f"Bearer {st.session_state.token}"
+        }
+
 def sanitize_row_data(row):
     """
     Limpia los datos de una fila antes de enviarlos a la API.
@@ -133,7 +137,7 @@ def app():
             # 3. Enviar a FastAPI
             try:
                 with st.spinner("Conectando con AWS..."):
-                    respuesta = requests.post(f"{API_BASE_URL}/zeutica/clientenuevo", json=datos_cliente)
+                    respuesta = requests.post(f"{API_BASE_URL}/zeutica/clientenuevo", headers= toks ,json=datos_cliente)
 
                 # 4. Manejar la respuesta del servidor
                 if respuesta.status_code == 200:
@@ -165,7 +169,7 @@ if __name__ == "__main__":
     def cargar_clientes_df():
     
         try:
-            response = requests.get(f"{API_BASE_URL}/zeutica/clientes")
+            response = requests.get(f"{API_BASE_URL}/zeutica/clientes", headers= toks)
             if response.status_code == 200:
                 # 1. Convertimos la lista de la API directamente a DataFrame plano
                 raw_json = response.json()
@@ -233,7 +237,7 @@ if st.session_state.mostrar_editor and st.session_state.clientes_data is not Non
                         payload = {k: (None if pd.isna(v) else v) for k, v in fila_actualizada.to_dict().items()}
                         
                         # Petición POST a tu endpoint de Zeutica
-                        res = requests.post(url_editar, json=payload)
+                        res = requests.post(url_editar, headers= toks ,json=payload)
                         
                         if res.status_code == 200:
                             exitosos += 1

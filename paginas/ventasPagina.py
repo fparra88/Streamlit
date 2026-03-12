@@ -3,14 +3,17 @@ import requests
 from datetime import datetime
 import random
 import pandas as pd
-import json
 
 API_BASE_URL = st.session_state.ip
+
+toks = {
+            "Authorization": f"Bearer {st.session_state.token}"
+        }
 
 # --- FUNCIONES DE DB ---
 def obtener_clientes():
     try:
-        res_clientes = requests.get(f"{API_BASE_URL}/zeutica/clientes")
+        res_clientes = requests.get(f"{API_BASE_URL}/zeutica/clientes", headers= toks)
         if res_clientes.status_code == 200:
             clientes = res_clientes.json()
             return {f"{item['id']} ({item['nombre']})": item for item in clientes}
@@ -19,7 +22,7 @@ def obtener_clientes():
     return {} # Retorno seguro si falla
 
 def obtener_inventario():
-    res_inventario = requests.get(f"{API_BASE_URL}/zeutica/productos")
+    res_inventario = requests.get(f"{API_BASE_URL}/zeutica/productos", headers= toks)
     inventario = res_inventario.json()
     # Mapeamos los productos por nombre y SKU
     opciones = {f"{item['sku']} ({item['nombre']})": item for item in inventario}
@@ -28,7 +31,7 @@ def obtener_inventario():
 def obtener_cotizaciones():
     """Obtiene las cotizaciones existentes del API"""
     try:
-        res_cotizaciones = requests.get(f"{API_BASE_URL}/zeutica/consulta/cotizacion")
+        res_cotizaciones = requests.get(f"{API_BASE_URL}/zeutica/consulta/cotizacion", headers= toks)
         if res_cotizaciones.status_code == 200:
             data = res_cotizaciones.json()
             
@@ -55,7 +58,7 @@ def obtener_cotizaciones():
 def obtener_items_cotizacion(cotizacion_id):
     """Obtiene los items de una cotización específica"""
     try:
-        res_items = requests.get(f"{API_BASE_URL}/zeutica/cotizacion/{cotizacion_id}")
+        res_items = requests.get(f"{API_BASE_URL}/zeutica/cotizacion/{cotizacion_id}", headers= toks)
         if res_items.status_code == 200:
             data = res_items.json()
             
@@ -111,6 +114,8 @@ def cargar_cotizacion_al_carrito(cotizacion):
 # --- INICIALIZAR MEMORIA ---
 if 'carrito_ventas' not in st.session_state:
     st.session_state.carrito_ventas = []
+if 'descuento_venta' not in st.session_state:
+    st.session_state.descuento_venta = 0.0
 
 # --- SECCIÓN: CARGAR COTIZACIONES EXISTENTES ---
 with st.expander("📋 Cargar Cotización Existente", expanded=False):
@@ -151,17 +156,15 @@ with st.expander("📝 Registrar Nueva Venta Múltiple", expanded=True):
         
         if seleccion and opciones_inv:
             producto_data = opciones_inv[seleccion]
-            #st.write(producto_data)
+            
             stock_disp = int(producto_data.get('stock_bodega', 0))
             
-            # 2. Extraemos los 3 precios de la base de datos
-            # ⚠️ IMPORTANTE: Cambia 'precio_a', 'precio_b', 'precio_c' por el nombre 
-            # exacto de las columnas como vienen desde tu base de datos de AWS
+            # 2. Extraemos los 3 precios de la base de datos           
             precio = float(producto_data.get('precio') or 0.0)
             precio_2 = float(producto_data.get('precio_2') or 0.0)
             precio_3 = float(producto_data.get('precio_3') or 0.0)
             precio_amazon = float(producto_data.get('precio_amazon') or 0.0)
-            st.info(producto_data.get("precio_amazon"))
+            
             # 3. Selector visual de Lista de Precios
             st.write("Selecciona Lista de Precios:")
             tipo_precio = st.radio(
@@ -272,7 +275,28 @@ with st.expander("📝 Registrar Nueva Venta Múltiple", expanded=True):
             
             # Totales
             total_venta = sum(item['total_linea'] for item in st.session_state.carrito_ventas)
-            st.markdown(f"## **TOTAL: ${total_venta:,.2f}**")
+            
+            # Sección de Descuento
+            st.markdown("#### Aplicar Descuento:")
+            descuento_pct = st.number_input(
+                "Porcentaje de Descuento (%):",
+                min_value=0.0,
+                max_value=100.0,
+                value=st.session_state.descuento_venta,
+                step=0.1,
+                key="descuento_input_venta"
+            )
+            st.session_state.descuento_venta = descuento_pct
+            
+            # Calcular total con descuento
+            monto_descuento = total_venta * (descuento_pct / 100)
+            total_con_descuento = total_venta - monto_descuento
+            
+            # Mostrar desglose
+            col_desc1, col_desc2 = st.columns(2)
+            col_desc1.metric("Subtotal:", f"${total_venta:,.2f}")
+            col_desc2.metric(f"Descuento ({descuento_pct}%):", f"-${monto_descuento:,.2f}")
+            st.markdown(f"## **TOTAL: ${total_con_descuento:,.2f}**")
             
             # Datos de Cierre
             diccionario_clientes = obtener_clientes()
@@ -298,11 +322,14 @@ with st.expander("📝 Registrar Nueva Venta Múltiple", expanded=True):
                 with st.spinner("Registrando artículos en AWS..."):
                     # Iteramos sobre cada producto en el carrito
                     for item in st.session_state.carrito_ventas:
+                        # Aplicar descuento al precio unitario
+                        precio_con_descuento = item['precio_unitario'] * (1 - (descuento_pct / 100))
+                        
                         payload = {
                             "id_venta": id_venta_generado, # <--- El nuevo ID de 10 dígitos
                             "sku": item['sku'],
                             "stock_bodega": item['cantidad'],
-                            "precio": item['precio_unitario'],
+                            "precio": round(precio_con_descuento, 2),
                             "producto": item['producto'],
                             "fecha": fecha_actual,
                             "nombreComprador": nom_cliente,
@@ -311,7 +338,7 @@ with st.expander("📝 Registrar Nueva Venta Múltiple", expanded=True):
                         }
                         
                         # Enviamos uno por uno a la base de datos
-                        res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", json=payload)
+                        res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", headers= toks ,json=payload)
                         if res.status_code != 200:
                             errores += 1
                             st.error(f"Fallo al guardar: {item['sku']}")

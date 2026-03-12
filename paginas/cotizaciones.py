@@ -6,10 +6,14 @@ import requests, time
 
 API_BASE_URL = st.session_state.ip
 
+toks = {
+            "Authorization": f"Bearer {st.session_state.token}"
+        }
+
 # // FUNCIONES PARA CONSULTAR DB //
 def obtener_clientes():
     try:
-        res_clientes = requests.get(f"{API_BASE_URL}/zeutica/clientes")
+        res_clientes = requests.get(f"{API_BASE_URL}/zeutica/clientes", headers= toks)
         if res_clientes.status_code == 200:
             clientes = res_clientes.json()
             return {c['nombre']: c for c in clientes}
@@ -19,7 +23,7 @@ def obtener_clientes():
 
 def obtener_inventario():
     try:
-        res_inventario = requests.get(f"{API_BASE_URL}/zeutica/productos")
+        res_inventario = requests.get(f"{API_BASE_URL}/zeutica/productos", headers= toks)
         if res_inventario.status_code == 200:
             inventario = res_inventario.json()
             return {f"{item['sku']} ({item['nombre']})": item for item in inventario}
@@ -29,7 +33,7 @@ def obtener_inventario():
 
 def obtener_siguiente_codigo():
     try:
-        res = requests.get(f"{API_BASE_URL}/zeutica/cotizaciones/nuevo-codigo")
+        res = requests.get(f"{API_BASE_URL}/zeutica/cotizaciones/nuevo-codigo", headers= toks)
         return res.json().get("nuevo_codigo")
     except:
         return "ZTC-ERR"
@@ -39,6 +43,7 @@ if 'items_cotizacion' not in st.session_state: st.session_state.items_cotizacion
 if 'mostrar_formCotizacion' not in st.session_state: st.session_state.mostrar_formCotizacion = False
 if "mostrar_form" not in st.session_state: st.session_state.mostrar_form = False
 if "codigo_actual" not in st.session_state: st.session_state.codigo_actual = "000"
+if "descuento_cotizacion" not in st.session_state: st.session_state.descuento_cotizacion = 0.0
 
 # --- CLASE PDF PROFESIONAL (DISEÑO ZEUTICA) ---
 class PDF(FPDF):
@@ -275,27 +280,50 @@ if st.session_state.mostrar_formCotizacion:
         if "incluir_envio" not in st.session_state:
             st.session_state.incluir_envio = True
         
-        # Calcular costo final según la opción del usuario
+        # Sección de Descuento (unificada y antes de totales)
+        st.markdown("---")
+        st.markdown("#### Aplicar Descuento:")
+        descuento_pct_coti = st.number_input(
+            "Porcentaje de Descuento (%):",
+            min_value=0.0,
+            max_value=100.0,
+            value=st.session_state.descuento_cotizacion,
+            step=0.1,
+            key="descuento_input_cotizacion"
+        )
+        st.session_state.descuento_cotizacion = descuento_pct_coti
+
         costo_envio = precio_envio_base if st.session_state.incluir_envio else 0.0
-        total_final = total_general + costo_envio
-        
+
+        # Aplicar descuento a cada item para el cálculo visual
+        items_con_descuento = [
+            {
+                **item,
+                'precio_descuento': float(item['precio']) * (1 - (descuento_pct_coti / 100)),
+                'total_descuento': float(item['cantidad']) * float(item['precio']) * (1 - (descuento_pct_coti / 100))
+            }
+            for item in st.session_state.items_cotizacion
+        ]
+        subtotal_desc = sum(item['total_descuento'] for item in items_con_descuento) if items_con_descuento else 0.0
+        monto_descuento = sum(item['total'] for item in st.session_state.items_cotizacion) - subtotal_desc if st.session_state.items_cotizacion else 0.0
+        subtotal_final = subtotal_desc
+        subtotal_mas_envio = subtotal_final + costo_envio
+        iva = subtotal_mas_envio * 0.16
+        total_final = subtotal_mas_envio + iva
+
         with col_lista:
             if st.session_state.items_cotizacion:
-                df = pd.DataFrame(st.session_state.items_cotizacion)
-                st.dataframe(df, use_container_width=True, hide_index=True)
-        
+                df = pd.DataFrame(items_con_descuento)
+                st.dataframe(df[[c for c in df.columns if c not in ['precio', 'total']]], use_container_width=True, hide_index=True)
+
                 st.markdown("---")
                 t1, t2 = st.columns([2, 1])
-        
+
                 with t2:
-                    st.write(f"**Subtotal:** ${subtotal:,.2f}")
-                    st.write(f"**IVA (16%):** ${iva:,.2f}")
-            
-                    if costo_envio == 0:
-                        st.success(f"✅ Envío Gratis ({sku_envio})")
-                    else:
-                        st.warning(f"🚚 Envío: ${costo_envio:,.2f} ({sku_envio})")
-            
+                    st.write(f"**Subtotal con descuento:** ${subtotal_final:,.2f}")
+                    st.write(f"**Descuento aplicado:** -${monto_descuento:,.2f}")
+                    st.write(f"**Envío:** ${costo_envio:,.2f}")
+                    st.write(f"**IVA (16% sobre subtotal+envío):** ${iva:,.2f}")
                     st.subheader(f"TOTAL: ${total_final:,.2f}")
 
                 if st.button("Limpiar Lista 🗑️"):
@@ -313,7 +341,7 @@ if st.session_state.mostrar_formCotizacion:
             
         forma_pago = f1.text_input("Forma de Pago", value="CONTADO")        
         comentario = f2.selectbox("Comentarios / Envío", opciones_comentarios)
-        
+
         # Opción para incluir o no el costo de envío
         st.markdown("---")
         st.session_state.incluir_envio = st.checkbox(
@@ -333,9 +361,22 @@ if st.session_state.mostrar_formCotizacion:
                     "empresa": empresa_nombre, "atencion": atencion, "email": email, 
                     "domicilio": domicilio, "telefono": telefono
                 }
-                
-                pdf_bytes = generar_pdf_zeutica(datos_cliente, st.session_state.items_cotizacion, forma_pago, comentario_final, costo_envio)
-                
+                # Usar los items con descuento para PDF y DB
+                pdf_bytes = generar_pdf_zeutica(
+                    datos_cliente,
+                    [
+                        {
+                            **i,
+                            'precio': round(float(i['precio']) * (1 - (descuento_pct_coti / 100)), 2),
+                            'total': round(float(i['cantidad']) * float(i['precio']) * (1 - (descuento_pct_coti / 100)), 2)
+                        }
+                        for i in st.session_state.items_cotizacion
+                    ],
+                    forma_pago,
+                    comentario_final,
+                    costo_envio
+                )
+
                 if st.download_button(
                         "📄 Descargar y Registrar Cotización",
                         data=pdf_bytes,
@@ -352,7 +393,7 @@ if st.session_state.mostrar_formCotizacion:
                             "email": email,
                             "domicilio": domicilio,
                             "telefono": telefono,
-                            "subtotal": round(subtotal, 2),
+                            "subtotal": round(subtotal_final, 2),
                             "iva": round(iva, 2),                            
                             "total": round(total_final, 2),
                             "costo_envio": round(costo_envio, 2),
@@ -363,13 +404,13 @@ if st.session_state.mostrar_formCotizacion:
                                 "sku": i['producto'].split(' (')[0],
                                 "nombre_producto": i['producto'].split(' (')[1].replace(')', ''),
                                 "cantidad": int(i['cantidad']),
-                                "precio_unitario": round(float(i['precio']), 2),
-                                "total_linea": round(float(i['total']), 2)
+                                "precio_unitario": round(float(i['precio']) * (1 - (descuento_pct_coti / 100)), 2),
+                                "total_linea": round(float(i['cantidad']) * float(i['precio']) * (1 - (descuento_pct_coti / 100)), 2)
                                 } for i in st.session_state.items_cotizacion
                             ]
                         }
-        
-                        res = requests.post(f"{API_BASE_URL}/zeutica/cotizaciones/guardar", json=payload)
+
+                        res = requests.post(f"{API_BASE_URL}/zeutica/cotizaciones/guardar", headers= toks, json=payload)
                         if res.status_code == 200:
                             st.balloons()
                             st.success(f"✅ Cotización {st.session_state.codigo_actual} guardada.")
@@ -396,7 +437,7 @@ if st.session_state.mostrar_form:
     with st.expander("📝 Consultor de Cotizaciones", expanded=True):
         st.info("📋 Consulta de cotizaciones activas en el sistema. Agrega el código de factura y presiona Guardar.")
         try:
-            coti = requests.get(f"{API_BASE_URL}/zeutica/consulta/cotizacion")
+            coti = requests.get(f"{API_BASE_URL}/zeutica/consulta/cotizacion", headers= toks)
             if coti.status_code == 200:
                 datos = coti.json().get("cotizaciones", [])
                 if datos:
@@ -429,7 +470,7 @@ if st.session_state.mostrar_form:
     
                         if not modificados.empty:
                             payload = modificados[["codigo_cotizacion", "relacion_factura"]].to_dict(orient="records")
-                            res_update = requests.post(f"{API_BASE_URL}/zeutica/relacionFactura", json=payload)
+                            res_update = requests.post(f"{API_BASE_URL}/zeutica/relacionFactura", headers= toks ,json=payload)
         
                             if res_update.status_code == 200:
                                  

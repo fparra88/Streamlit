@@ -5,6 +5,10 @@ from datetime import datetime
 # Configuración de la API
 API_BASE_URL = st.session_state.ip
 
+toks = {
+            "Authorization": f"Bearer {st.session_state.token}"
+        }
+
 st.title("📦 Registrar Compra")
 st.divider()
 
@@ -22,7 +26,7 @@ def obtener_productos():
     """
     try:
         with st.spinner("Cargando productos..."):
-            response = requests.get(f"{API_BASE_URL}/zeutica/productos", timeout=5)
+            response = requests.get(f"{API_BASE_URL}/zeutica/productos", headers= toks ,timeout=5)
         
         if response.status_code == 200:
             productos = response.json()
@@ -154,7 +158,7 @@ with st.form("formulario_compra", clear_on_submit=True):
             # TODO: ENVIAR A LA API (descomenta cuando el endpoint esté listo)
             try:
                 response = requests.post(
-                    f"{API_BASE_URL}/zeutica/compras",
+                    f"{API_BASE_URL}/zeutica/compras", headers= toks,
                     json=datos_compra,
                     timeout=5
                 )
