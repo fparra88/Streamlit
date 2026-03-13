@@ -173,7 +173,7 @@ else:
 
     # --- 3. LÓGICA DE PÁGINAS ---
     if selected == "Dashboard":
-        if st.session_state.usuario_nombre == "gerencia":
+        if st.session_state.usuario_nombre == "gerencia" or "fparra":
             with open("paginas/dashboard.py", encoding="utf-8") as f:
                 exec(f.read())
         else:
@@ -218,7 +218,7 @@ else:
             exec(f.read())
 
     elif selected == "Compras":
-        if st.session_state.usuario_nombre == "gerencia":
+        if st.session_state.usuario_nombre == "gerencia" or "fparra":
             # Lee y ejecuta full        
             with open("paginas/compras.py", encoding="utf-8") as f:
                 exec(f.read())

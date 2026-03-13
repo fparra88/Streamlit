@@ -289,13 +289,16 @@ with st.expander("📝 Registrar Nueva Venta Múltiple", expanded=True):
             st.session_state.descuento_venta = descuento_pct
             
             # Calcular total con descuento
-            monto_descuento = total_venta * (descuento_pct / 100)
-            total_con_descuento = total_venta - monto_descuento
+            monto_descuento = total_venta * (descuento_pct / 100)            
+            iva = 1.16
+            total_con_descuento = (total_venta - monto_descuento) * iva
+            iva_solo = total_venta * 0.16
             
             # Mostrar desglose
-            col_desc1, col_desc2 = st.columns(2)
+            col_desc1, col_desc2, col_des3 = st.columns(3)
             col_desc1.metric("Subtotal:", f"${total_venta:,.2f}")
             col_desc2.metric(f"Descuento ({descuento_pct}%):", f"-${monto_descuento:,.2f}")
+            col_des3.metric(f"Iva:" ,f"${float(iva_solo):,.2f}")
             st.markdown(f"## **TOTAL: ${total_con_descuento:,.2f}**")
             
             # Datos de Cierre

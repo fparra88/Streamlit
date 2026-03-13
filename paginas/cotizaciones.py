@@ -399,6 +399,7 @@ if st.session_state.mostrar_formCotizacion:
                             "costo_envio": round(costo_envio, 2),
                             "forma_pago": forma_pago,
                             "comentarios": comentario_final,
+                            "usuario": st.session_state.usuario_nombre,
                             "items": [
                                 {
                                 "sku": i['producto'].split(' (')[0],
