@@ -449,28 +449,47 @@ if st.session_state.mostrar_form:
                     if "relacion_factura" not in df.columns:
                         df["relacion_factura"] = ""
                         
-                    # 3. Identificamos todas las columnas originales para 
+                    # Identificamos todas las columnas originales
                     columnas_permitidas = ["relacion_factura", "metodo_pago", "fecha_pago"]
                     columnas_bloqueadas = [col for col in df.columns if col not in columnas_permitidas]
+
+                    # Aseguramos que la columna sea reconocida como fecha
+                    df['fecha_pago'] = pd.to_datetime(df['fecha_pago'], errors='coerce')
+
+                    # Definimos la configuración de las columnas
+                    config_columnas = {
+                        "fecha_pago": st.column_config.DateColumn(
+                            "Fecha de Pago",      # Título visual
+                            format="YYYY-MM-DD",  # Formato que verá el usuario
+                            step=1,
+                        ),
+                        "metodo_pago": st.column_config.SelectboxColumn(
+                            "Método de Pago",
+                            options=["EFECTIVO", "TRANSFERENCIA", "TARJETA", "DEPOSITO"]
+                        )
+                    }
                     
-                    # 4. Mostramos el editor de datos interactivo
+                    # Mostramos el editor de datos interactivo
                     df_editado = st.data_editor(
-                        df, 
+                        df,
+                        column_config=config_columnas, 
                         use_container_width=True, 
                         hide_index=True,
                         disabled=columnas_bloqueadas, # Esto hace que SOLO relacion_factura sea editable
                         key="editor_cotizaciones"
                     )
                     
-                    # 5. Botón para enviar los datos a la base de datos              
+                    #  Botón para enviar los datos a la base de datos        
 
 
                     if st.button("Guardar Relación de Facturas 💾", type="primary"):
-                        mask = df_editado["relacion_factura"].notna() & (df_editado["relacion_factura"].str.strip() != "")
+                        mask = df_editado[columnas_permitidas].notna().any(axis=1)
                         modificados = df_editado[mask]
     
                         if not modificados.empty:
-                            payload = modificados[["codigo_cotizacion", "relacion_factura"]].to_dict(orient="records")
+                            modificados['fecha_pago'] = modificados['fecha_pago'].dt.strftime('%Y-%m-%d')
+                            columnas_a_enviar = ["codigo_cotizacion"] + columnas_permitidas
+                            payload = modificados[columnas_a_enviar].to_dict(orient="records")
                             res_update = requests.post(f"{API_BASE_URL}/zeutica/relacionFactura", headers= toks ,json=payload)
         
                             if res_update.status_code == 200:
@@ -481,7 +500,7 @@ if st.session_state.mostrar_form:
             
                                 st.rerun() 
                             else:
-                                st.error("❌ Error al guardar en el servidor.")
+                                st.error(f"Error: {res_update.text}")
                         else:
                             st.warning("⚠️ No has ingresado ninguna factura nueva para guardar.")
 

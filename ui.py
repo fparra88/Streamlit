@@ -113,9 +113,10 @@ if not st.session_state.autenticado:
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.info("Aqui sera una seccion para anuncios importantes!")
+        st.info("Actualizacion de sistema:\n" \
+        "Fallos en relacion cotizacion/factura")
     with col3:
-        st.error("NO OLVIDES REALIZAR X MOVIMIENTO!")
+        st.error("NO OLVIDES INGRESAR LAS VENTAS DE AMAZON!")
 
     with col2:
         with st.container():
@@ -173,7 +174,7 @@ else:
 
     # --- 3. LÓGICA DE PÁGINAS ---
     if selected == "Dashboard":
-        if st.session_state.usuario_nombre == "gerencia" or "fparra":
+        if st.session_state.usuario_nombre == "gerencia":
             with open("paginas/dashboard.py", encoding="utf-8") as f:
                 exec(f.read())
         else:
@@ -218,7 +219,7 @@ else:
             exec(f.read())
 
     elif selected == "Compras":
-        if st.session_state.usuario_nombre == "gerencia" or "fparra":
+        if st.session_state.usuario_nombre == "gerencia":
             # Lee y ejecuta full        
             with open("paginas/compras.py", encoding="utf-8") as f:
                 exec(f.read())

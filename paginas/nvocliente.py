@@ -131,7 +131,8 @@ def app():
                 "rfc": rfc,
                 "cp": cp,
                 "regimen": regimen,
-                "usocfdi": usocfdi
+                "usocfdi": usocfdi,
+                "usuario": st.session_state.usuario_nombre
             }
 
             # 3. Enviar a FastAPI

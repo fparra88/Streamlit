@@ -81,7 +81,7 @@ if "productos_data" not in st.session_state:
 if "mensaje_exito" not in st.session_state:
     st.session_state.mensaje_exito = False
 
-if st.session_state.usuario_nombre == "gerencia" or "fparra":
+if st.session_state.usuario_nombre == "gerencia":
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -168,7 +168,7 @@ if "show_form_nuevo" not in st.session_state:
 if "mensaje_nuevo_exito" not in st.session_state:
     st.session_state.mensaje_nuevo_exito = False
 
-if st.session_state.usuario_nombre == "gerencia" or "fparra":
+if st.session_state.usuario_nombre == "gerencia":
     col1, col2 = st.columns([2, 1])
     
     with col1:

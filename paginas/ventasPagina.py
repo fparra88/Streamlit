@@ -337,7 +337,8 @@ with st.expander("📝 Registrar Nueva Venta Múltiple", expanded=True):
                             "fecha": fecha_actual,
                             "nombreComprador": nom_cliente,
                             "otros": met_pago,
-                            "plataforma": medio
+                            "plataforma": medio,
+                            "usuario": st.session_state.usuario_nombre
                         }
                         
                         # Enviamos uno por uno a la base de datos
