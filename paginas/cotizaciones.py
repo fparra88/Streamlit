@@ -274,7 +274,7 @@ if st.session_state.mostrar_formCotizacion:
             precio_envio_base = 0.0
         else:
             sku_envio = "ENV-ESTANDAR-01"
-            precio_envio_base = 300.00
+            precio_envio_base = 350.00
         
         # Inicializar estado para incluir envío
         if "incluir_envio" not in st.session_state:
@@ -488,6 +488,7 @@ if st.session_state.mostrar_form:
     
                         if not modificados.empty:
                             modificados['fecha_pago'] = modificados['fecha_pago'].dt.strftime('%Y-%m-%d')
+                            modificados = modificados.where(pd.notnull(modificados), None)
                             columnas_a_enviar = ["codigo_cotizacion"] + columnas_permitidas
                             payload = modificados[columnas_a_enviar].to_dict(orient="records")
                             res_update = requests.post(f"{API_BASE_URL}/zeutica/relacionFactura", headers= toks ,json=payload)
