@@ -266,7 +266,7 @@ if st.session_state.mostrar_formCotizacion:
         sku_envio = "ENV-ESTANDAR-01"
         
         # Precio base del envío
-        precio_envio_base = 300.00
+        precio_envio_base = 350.00
         
         # Lógica de envío gratis o pagado
         if total_general > limite_envio:

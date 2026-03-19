@@ -84,9 +84,9 @@ def calcular_metricas(df):
     
     # 2. Utilidad (estimada como 25% - ajustable según tu modelo de negocio)
     # Si el backend trae una columna 'utilidad', usa eso en su lugar
-    if 'utilidad' in df.columns:
-        metricas['utilidad'] = df['utilidad'].sum()
-        metricas['utilidad_pct'] = (metricas['utilidad'] / (df['cantidad'].sum() or 1)) * 100
+    if 'utilidad_total' in df.columns:
+        metricas['utilidad_total'] = df['utilidad_total'].sum()
+        metricas['utilidad_pct'] = (metricas['utilidad_total'] / (df['cantidad'].sum() or 1)) * 100
     else:
         # Estimación por defecto (ajustable)
         metricas['utilidad'] = metricas['total_ventas'] * 0.25
@@ -133,8 +133,8 @@ def mostrar_dashboard_gerencia():
     with col2:
         st.metric(
             "💰 Utilidad Estimada",
-            f"{metricas['utilidad']:,.0f}",
-            delta=f"{metricas['utilidad_pct']:.1f}%",
+            f"${metricas['utilidad_total']:,.0f}",
+            delta=f"{metricas['utilidad_pct']:.1f}%",   
             help="Utilidad calculada del mes"
         )
     

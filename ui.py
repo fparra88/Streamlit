@@ -154,8 +154,8 @@ else:
 
     selected = option_menu(
         menu_title=None,  # No necesitamos título de menú
-        options=["Dashboard","Inventario", "Ventas", "Cotizaciones", "Clientes", "Reportes", "Traspaso FULL", "Gastos Operativos", "Compras"], # Opciones del menú
-        icons=["people","archive", "cash-stack", "file-earmark-text", "people", "archive","archive", "people", "cash-stack"], # Iconos de bootstrap
+        options=["Dashboard","Inventario", "Ventas", "Cotizaciones", "Clientes", "Reportes", "Traspaso FULL", "Gastos Operativos", "CleanestChoice" ,"Compras"], # Opciones del menú
+        icons=["people","archive", "cash-stack", "file-earmark-text", "people", "archive","archive", "people", "archive" , "cash-stack"], # Iconos de bootstrap
         menu_icon="cast", 
         default_index=0, 
         orientation="horizontal",
@@ -172,7 +172,7 @@ else:
         }
     )
 
-    # --- 3. LÓGICA DE PÁGINAS ---
+    # ---  LÓGICA DE PÁGINAS ---
     if selected == "Dashboard":
         if st.session_state.usuario_nombre == "gerencia":
             with open("paginas/dashboard.py", encoding="utf-8") as f:
@@ -218,6 +218,11 @@ else:
         with open("paginas/gastos.py", encoding="utf-8") as f:
             exec(f.read())
 
+    elif selected == "CleanestChoice":
+        # Lee y ejecuta full        
+        with open("paginas/cleanestc.py", encoding="utf-8") as f:
+            exec(f.read())
+
     elif selected == "Compras":
         if st.session_state.usuario_nombre == "gerencia":
             # Lee y ejecuta full        
@@ -251,3 +256,4 @@ else:
             controller.remove("zeutica_session")
             st.session_state.autenticado = False
             st.rerun()
+        
