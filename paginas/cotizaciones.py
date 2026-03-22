@@ -3,6 +3,7 @@ import pandas as pd
 from fpdf import FPDF
 from datetime import datetime
 import requests, time
+import base64
 
 API_BASE_URL = st.session_state.ip
 
@@ -83,7 +84,7 @@ class PDF(FPDF):
         self.cell(0, 5, "Tel: 33-1299-5688 / E-mail: ventas1@zeutica.com", 0, 1, 'C')
         self.cell(0, 5, f'Página {self.page_no()}', 0, 0, 'R')
 
-def generar_pdf_zeutica(datos_cliente, items, forma_pago, comentario_seleccionado, costo_envio):
+def generar_pdf_zeutica(datos_cliente, items, forma_pago, comentario_seleccionado, costo_envio, descuento_pct=0.0, monto_descuento=0.0):
     pdf = PDF()
     pdf.add_page()
     
@@ -156,18 +157,21 @@ def generar_pdf_zeutica(datos_cliente, items, forma_pago, comentario_seleccionad
 
     iva = subtotal_gral * 0.16
     total_neto = subtotal_gral + costo_envio + iva
-    
+
     pdf.ln(2)
     x_totales = 140
     pdf.set_x(x_totales)
-    
-    def fila_total(texto, valor, negrita=False):
+
+    def fila_total(texto, valor, negrita=False, prefijo="$"):
         pdf.set_x(x_totales)
         pdf.set_font('Arial', 'B' if negrita else '', 9)
         pdf.cell(30, 6, texto, 1, 0, 'R', 1 if negrita else 0)
-        pdf.cell(30, 6, f"${valor:,.2f}", 1, 1, 'R', 1 if negrita else 0)
+        pdf.cell(30, 6, f"{prefijo}{valor:,.2f}", 1, 1, 'R', 1 if negrita else 0)
 
-    fila_total("Sub-Total:", subtotal_gral)
+    subtotal_original = subtotal_gral + monto_descuento
+    fila_total("Sub-Total:", subtotal_original)
+    if descuento_pct > 0:
+        fila_total(f"Descuento ({descuento_pct:.1f}%):", monto_descuento, prefijo="-$")
     fila_total("Costo del Envio:", costo_envio)
     fila_total("IVA (16%):", iva)
     fila_total("TOTAL:", total_neto, negrita=True)
@@ -304,8 +308,9 @@ if st.session_state.mostrar_formCotizacion:
             }
             for item in st.session_state.items_cotizacion
         ]
+        subtotal_original = sum(item['total'] for item in st.session_state.items_cotizacion) if st.session_state.items_cotizacion else 0.0
         subtotal_desc = sum(item['total_descuento'] for item in items_con_descuento) if items_con_descuento else 0.0
-        monto_descuento = sum(item['total'] for item in st.session_state.items_cotizacion) - subtotal_desc if st.session_state.items_cotizacion else 0.0
+        monto_descuento = subtotal_original - subtotal_desc
         subtotal_final = subtotal_desc
         subtotal_mas_envio = subtotal_final + costo_envio
         iva = subtotal_mas_envio * 0.16
@@ -320,8 +325,9 @@ if st.session_state.mostrar_formCotizacion:
                 t1, t2 = st.columns([2, 1])
 
                 with t2:
-                    st.write(f"**Subtotal con descuento:** ${subtotal_final:,.2f}")
+                    st.write(f"**Subtotal:** ${subtotal_original:,.2f}")
                     st.write(f"**Descuento aplicado:** -${monto_descuento:,.2f}")
+                    st.write(f"**Subtotal con descuento:** ${subtotal_final:,.2f}")
                     st.write(f"**Envío:** ${costo_envio:,.2f}")
                     st.write(f"**IVA (16% sobre subtotal+envío):** ${iva:,.2f}")
                     st.subheader(f"TOTAL: ${total_final:,.2f}")
@@ -374,9 +380,11 @@ if st.session_state.mostrar_formCotizacion:
                     ],
                     forma_pago,
                     comentario_final,
-                    costo_envio
+                    costo_envio,
+                    descuento_pct=descuento_pct_coti,
+                    monto_descuento=monto_descuento
                 )
-
+                pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8') # Generamos pdf en base64
                 if st.download_button(
                         "📄 Descargar y Registrar Cotización",
                         data=pdf_bytes,
@@ -400,6 +408,7 @@ if st.session_state.mostrar_formCotizacion:
                             "forma_pago": forma_pago,
                             "comentarios": comentario_final,
                             "usuario": st.session_state.usuario_nombre,
+                            "pdf": pdf_base64,
                             "items": [
                                 {
                                 "sku": i['producto'].split(' (')[0],
@@ -419,7 +428,8 @@ if st.session_state.mostrar_formCotizacion:
                             st.session_state.codigo_actual = "000"
                         else:
                             st.error("❌ Error al guardar en la base de datos.")
-                            
+                        requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/0c67219b-97b4-4cb3-9e7d-6fe4ece90a6d", json=payload) 
+
             except Exception as e:
                 # --- ESTE ES EL BLINDAJE ---
                 st.error(f"⚠️ No se pudo generar la cotización.")
@@ -459,27 +469,38 @@ if st.session_state.mostrar_form:
                     # Definimos la configuración de las columnas
                     config_columnas = {
                         "fecha_pago": st.column_config.DateColumn(
-                            "Fecha de Pago",      # Título visual
-                            format="YYYY-MM-DD",  # Formato que verá el usuario
+                            "Fecha de Pago",
+                            format="YYYY-MM-DD",
                             step=1,
                         ),
                         "metodo_pago": st.column_config.SelectboxColumn(
                             "Método de Pago",
                             options=["EFECTIVO", "TRANSFERENCIA", "TARJETA", "DEPOSITO"]
-                        )
+                        ),
+                        "pdf": None,  # Ocultamos la columna base64 cruda
                     }
-                    
+
                     # Mostramos el editor de datos interactivo
                     df_editado = st.data_editor(
                         df,
-                        column_config=config_columnas, 
-                        use_container_width=True, 
+                        column_config=config_columnas,
+                        use_container_width=True,
                         hide_index=True,
-                        disabled=columnas_bloqueadas, # Esto hace que SOLO relacion_factura sea editable
-                        key="editor_cotizaciones"
+                        disabled=columnas_bloqueadas,
+                        key="editor_cotizaciones",
                     )
-                    
-                    #  Botón para enviar los datos a la base de datos        
+
+                    # Links de descarga con atributo download (evita página en blanco)
+                    if 'pdf' in df.columns and df['pdf'].notna().any():
+                        links_html = " &nbsp; ".join(
+                            f'<a href="data:application/pdf;base64,{row["pdf"]}" '
+                            f'download="Cotizacion_{row["codigo_cotizacion"]}.pdf" '
+                            f'style="text-decoration:none;">📄 {row["codigo_cotizacion"]}</a>'
+                            for _, row in df.iterrows() if row.get("pdf")
+                        )
+                        st.markdown(f"**Descargar PDF:** &nbsp; {links_html}", unsafe_allow_html=True)
+
+                    #  Botón para enviar los datos a la base de datos
 
 
                     if st.button("Guardar Relación de Facturas 💾", type="primary"):
