@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from datetime import datetime
 
 # ============================================================================
 # 1. SEGURIDAD Y ESTADO INICIAL
