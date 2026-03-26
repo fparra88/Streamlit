@@ -12,7 +12,7 @@ API_BASE_URL = st.session_state.ip
 
 # Armamos el header correctamente
 toks = {
-    "Authorization": f"Bearer {st.session_state.token}"
+    "Authorization": f"Bearer {st.session_state.get('token')}"
 }
 
 st.header("Plataforma de registro de gastos Operativos")

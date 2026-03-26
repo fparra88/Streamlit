@@ -5,7 +5,7 @@ from paginas.ventasPagina import obtener_inventario
 API_BASE_URL = st.session_state.ip
 
 toks = {
-    "Authorization": f"Bearer {st.session_state.token}"
+    "Authorization": f"Bearer {st.session_state.get('token')}"
 }
 
 def obtener_pedidos():
