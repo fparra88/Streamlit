@@ -22,7 +22,7 @@ def obtener_clientes():
     return {} # Retorno seguro si falla
 
 def obtener_inventario():
-    try:
+    try: 
         # Asegúrate de que API_BASE_URL y toks sean los correctos para producción
         res = requests.get(f"{API_BASE_URL}/zeutica/productos", headers=toks, timeout=5)
         

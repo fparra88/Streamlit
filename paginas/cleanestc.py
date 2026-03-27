@@ -1,12 +1,34 @@
 import streamlit as st
 import requests
-from paginas.ventasPagina import obtener_inventario
 
 API_BASE_URL = st.session_state.ip
 
 toks = {
     "Authorization": f"Bearer {st.session_state.get('token')}"
 }
+
+def obtener_inventario():
+    try: 
+        # Asegúrate de que API_BASE_URL y toks sean los correctos para producción
+        res = requests.get(f"{API_BASE_URL}/zeutica/productos", headers=toks, timeout=5)
+        
+        if res.status_code == 200:
+            datos = res.json()
+            
+            # VALIDACIÓN CRÍTICA: Solo procesamos si es una lista
+            if isinstance(datos, list):
+                return {f"{item['sku']} ({item.get('nombre', 'S/N')})": item for item in datos}
+            else:
+                st.error("⚠️ La API de producción no devolvió una lista de productos.")
+                return {}
+        else:
+            # En producción, esto te dirá si es un error 401 (Token), 404, etc.
+            st.error(f"❌ Error en API Producción: {res.status_code} - {res.text}")
+            return {}
+        
+    except Exception as e:
+        st.error(f"📡 Fallo de conexión en producción: {e}")
+        return {}
 
 def obtener_pedidos():
     try:
