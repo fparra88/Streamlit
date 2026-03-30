@@ -46,6 +46,46 @@ def actualizar_pedido(pedido_id, payload):
     except:
         return False
 
+def mostrar_firma(norden_v):
+    """Muestra un botón toggle; solo consulta y renderiza la firma si el usuario lo activa."""
+    import base64
+    from PIL import Image
+    import io
+
+    key_toggle = f"ver_firma_{norden_v}"
+    if key_toggle not in st.session_state:
+        st.session_state[key_toggle] = False
+
+    label = "🔒 Ocultar Firma" if st.session_state[key_toggle] else "🖊️ Ver Firma Registrada"
+    if st.button(label, key=f"btn_ver_firma_{norden_v}", use_container_width=True):
+        st.session_state[key_toggle] = not st.session_state[key_toggle]
+
+    if st.session_state[key_toggle]:
+        try:
+            res = requests.get(
+                f"{API_BASE_URL}/zeutica/obtener-firma",
+                headers=toks,
+                params={"numero_orden": norden_v},
+                timeout=5,
+            )
+            if res.status_code == 200:
+                data = res.json()
+                img_b64 = data.get("firma_base64") or data.get("firma_digital")
+                fecha = data.get("fecha_firma")
+                if img_b64:
+                    img_bytes = base64.b64decode(img_b64)
+                    img = Image.open(io.BytesIO(img_bytes))
+                    st.image(img, caption=f"Firma — Orden {norden_v} con fecha {fecha}", use_container_width=False, width=350)
+                else:
+                    st.caption("Sin firma registrada aún.")
+            elif res.status_code == 404:
+                st.caption("Sin firma registrada aún.")
+            else:
+                st.caption(f"No se pudo obtener la firma ({res.status_code}).")
+        except Exception as e:
+            st.caption(f"Error al cargar firma: {e}")
+
+
 def firma_digital(pid, norden_v):
     """Muestra canvas de firma, convierte a base64 y envía a /zeutica/efirma"""
     from streamlit_drawable_canvas import st_canvas
@@ -93,7 +133,7 @@ def firma_digital(pid, norden_v):
                 "numero_orden": norden_v,
                 "firma_base64": img_b64,
                 "usuario": st.session_state.get("usuario_nombre", "sistema"),
-                "fecha": datetime.now().isoformat(),
+                "fecha_firma": datetime.now().isoformat(),
             }
 
             try:
@@ -154,6 +194,8 @@ def cleanest():
                         res = requests.post(f"{API_BASE_URL}/zeutica/ordenes", headers=toks, json=payload)
                         if res.status_code in (200, 201):
                             st.success(f"✅ Orden **{norden}** registrada correctamente.")
+                            requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
+                            st.balloons()
                         else:
                             st.error(f"Error al registrar: {res.status_code} — {res.text}")
                     except Exception as e:
@@ -259,7 +301,10 @@ def cleanest():
                         else:
                             st.error("Error al actualizar. Verifica la conexión con el servidor.")
 
-                    # Firma digital por orden
+                    # Visualización de la firma ya registrada
+                    mostrar_firma(norden_v)
+
+                    # Canvas para capturar o actualizar la firma
                     firma_digital(pid, norden_v)
 
 cleanest()
