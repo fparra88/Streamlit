@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import pandas as pd
 
 API_BASE_URL = st.session_state.ip
 
@@ -81,7 +82,7 @@ if "productos_data" not in st.session_state:
 if "mensaje_exito" not in st.session_state:
     st.session_state.mensaje_exito = False
 
-if st.session_state.usuario_nombre == "gerencia":
+if st.session_state.usuario_nombre == "fparra":
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -96,7 +97,8 @@ if st.session_state.usuario_nombre == "gerencia":
                     response = requests.get(f"{API_BASE_URL}/zeutica/productos", headers= toks)
                 
                 if response.status_code == 200:
-                    st.session_state.productos_data = response.json()
+                    
+                    st.session_state.productos_data = pd.DataFrame(response.json())
                 else:
                     st.error(f"Error al obtener productos: Código {response.status_code}")
             
@@ -129,8 +131,11 @@ if st.session_state.usuario_nombre == "gerencia":
                 if st.button("✅ Guardar Cambios", use_container_width=True):
                     try:
                         with st.spinner('Guardando cambios...'):
-                            # Convertir los datos editados a diccionario
-                            payload = {"productos": datos_editados}
+                            import numpy as np
+                            df_para_limpiar = pd.DataFrame(datos_editados)
+                            # Reemplazar NaN y convertir a lista de dicts para serializar JSON
+                            datos_limpios = df_para_limpiar.replace({np.nan: None})
+                            payload = {"productos": datos_limpios.to_dict(orient="records")}
                             
                             # Hacer POST al endpoint
                             save_response = requests.post(

@@ -181,13 +181,14 @@ if __name__ == "__main__":
                 precio = float(producto_data.get('precio') or 0.0)
                 precio_2 = float(producto_data.get('precio_2') or 0.0)
                 precio_3 = float(producto_data.get('precio_3') or 0.0)
+                precio_clean = float(producto_data.get('precio_clean') or 0.0)
                 precio_amazon = float(producto_data.get('precio_amazon') or 0.0)
 
                 # 3. Selector visual de Lista de Precios
                 st.write("Selecciona Lista de Precios:")
                 tipo_precio = st.radio(
                     "Oculto", # Etiqueta oculta
-                    options=["Precio A", "Precio B", "Precio C", "Precio Amazon"],
+                    options=["Precio A", "Precio B", "Precio C", "Precio clean" ,"Precio Amazon"],
                     horizontal=True,
                     label_visibility="collapsed"
                 )
@@ -199,6 +200,8 @@ if __name__ == "__main__":
                     precio_sugerido = precio_2
                 elif tipo_precio == "Precio C":
                     precio_sugerido = precio_3
+                elif tipo_precio == "Precio clean":
+                    precio_sugerido = precio_clean
                 else:
                     precio_sugerido = precio_amazon
 
@@ -213,12 +216,20 @@ if __name__ == "__main__":
                 )
 
                 # 4. El input de precio ahora toma el valor sugerido automáticamente (pero permite editarlo manualmente si es necesario)
-                precio = c2.number_input(
-                    "Precio a aplicar:",
-                    min_value=0.0,
-                    value=float(precio_sugerido),
-                    format="%.2f"
-                )
+                if tipo_precio == "Precio clean":
+                    # No dibujamos el widget en c2, pero guardamos el valor en la variable 'precio'
+                    precio = float(precio_sugerido)
+                    
+                    # Opcional: Mostramos un mensaje informativo en lugar del input
+                    c2.info("✨ Precio Clean aplicado")
+                else:
+                    # Para cualquier otro caso, mostramos el input normalmente
+                    precio = c2.number_input(
+                        "Precio a aplicar:",
+                        min_value=0.0,
+                        value=float(precio_sugerido),
+                        format="%.2f"
+                    )
 
                 # 5. Botón normal (fuera de formulario)
                 agregar = st.button("Añadir al Carrito 🛒", use_container_width=True, type="secondary")

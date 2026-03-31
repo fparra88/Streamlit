@@ -86,70 +86,68 @@ def mostrar_firma(norden_v):
             st.caption(f"Error al cargar firma: {e}")
 
 
-def firma_digital(pid, norden_v):
-    """Muestra canvas de firma, convierte a base64 y envía a /zeutica/efirma"""
+@st.dialog("✍️ Firma Digital")
+def _modal_firma(pid, norden_v):
+    """Canvas dentro de modal; convierte a base64 y envía a /zeutica/efirma"""
     from streamlit_drawable_canvas import st_canvas
     import base64
     import io
     from PIL import Image
     from datetime import datetime
 
-    key_show = f"show_firma_{pid}"
-    if key_show not in st.session_state:
-        st.session_state[key_show] = False
+    st.caption(f"Orden: **{norden_v}** — Dibuja la firma en el recuadro:")
 
+    canvas_result = st_canvas(
+        fill_color="rgba(255,255,255,0)",
+        stroke_width=2,
+        stroke_color="#000000",
+        background_color="#FFFFFF",
+        height=150,
+        width=500,
+        drawing_mode="freedraw",
+        display_toolbar=True,
+        key=f"canvas_{pid}",
+    )
+
+    if st.button("📤 Enviar Firma", type="primary", use_container_width=True):
+        if canvas_result.image_data is None:
+            st.warning("El lienzo está vacío. Dibuja la firma antes de enviar.")
+            return
+
+        # Convertir numpy array → PNG → base64
+        img = Image.fromarray(canvas_result.image_data.astype("uint8"), mode="RGBA")
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        payload = {
+            "numero_orden": norden_v,
+            "firma_base64": img_b64,
+            "usuario": st.session_state.get("usuario_nombre", "sistema"),
+            "fecha_firma": datetime.now().isoformat(),
+        }
+
+        try:
+            res = requests.post(f"{API_BASE_URL}/zeutica/efirma", headers=toks, json=payload)
+            if res.status_code in (200, 201):
+                st.success("✅ Firma enviada correctamente.")
+                st.rerun()
+            else:
+                st.error(f"Error al enviar firma: {res.status_code} — {res.text}")
+        except Exception as e:
+            st.error(f"Error de conexión: {e}")
+
+
+def firma_digital(pid, norden_v):
+    """Botón que abre el modal de firma digital."""
     st.markdown("---")
-
     if st.button("✍️ Firma Digital", key=f"btn_firma_{pid}", use_container_width=True):
-        st.session_state[key_show] = not st.session_state[key_show]
-
-    if st.session_state[key_show]:
-        st.markdown("**Dibuja la firma en el recuadro:**")
-
-        canvas_result = st_canvas(
-            fill_color="rgba(255,255,255,0)",
-            stroke_width=2,
-            stroke_color="#000000",
-            background_color="#FFFFFF",
-            height=150,
-            width=500,
-            drawing_mode="freedraw",
-            display_toolbar=True,
-            key=f"canvas_{pid}",
-        )
-
-        if st.button("📤 Enviar Firma", key=f"enviar_firma_{pid}", type="primary"):
-            if canvas_result.image_data is None:
-                st.warning("El lienzo está vacío. Dibuja la firma antes de enviar.")
-                return
-
-            # Convertir numpy array → PNG → base64
-            img = Image.fromarray(canvas_result.image_data.astype("uint8"), mode="RGBA")
-            buffer = io.BytesIO()
-            img.save(buffer, format="PNG")
-            img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-            payload = {
-                "numero_orden": norden_v,
-                "firma_base64": img_b64,
-                "usuario": st.session_state.get("usuario_nombre", "sistema"),
-                "fecha_firma": datetime.now().isoformat(),
-            }
-
-            try:
-                res = requests.post(f"{API_BASE_URL}/zeutica/efirma", headers=toks, json=payload)
-                if res.status_code in (200, 201):
-                    st.success("✅ Firma enviada correctamente.")
-                    st.session_state[key_show] = False
-                else:
-                    st.error(f"Error al enviar firma: {res.status_code} — {res.text}")
-            except Exception as e:
-                st.error(f"Error de conexión: {e}")
+        _modal_firma(pid, norden_v)
 
 def cleanest():
     st.title("CLEANEST CHOICE")
 
-    tab_nueva, tab_tracking = st.tabs(["Nueva Orden de Pedido", "Tracking de Pedidos"])
+    tab_nueva, tab_tracking, tab_historial = st.tabs(["Nueva Orden de Pedido", "Tracking de Pedidos", "Historial"])
 
     # ─────────────────────────────────────────
     # TAB 1: NUEVA ORDEN
@@ -214,16 +212,28 @@ def cleanest():
 
         pedidos = obtener_pedidos()
 
-        if not pedidos:
-            st.info("No hay órdenes registradas.")
-        else:
-            STATUS_ICON = {
-                "Entregado":  "🟢",
-                "En Tránsito": "🟡",
-                "Pendiente":  "🔴",
-            }
+        STATUS_ICON = {
+            "Entregado":  "🟢",
+            "En Tránsito": "🟡",
+            "Pendiente":  "🔴",
+        }
 
-            for pedido in pedidos:
+        def calcular_status(pedido):
+            cantidad_v = int(pedido.get("cantidad", 0))
+            total = int(pedido.get("envio1", 0)) + int(pedido.get("envio2", 0)) + int(pedido.get("envio3", 0))
+            if total >= cantidad_v:
+                return "Entregado"
+            elif total > 0:
+                return "En Tránsito"
+            return pedido.get("status", "Pendiente")
+
+        # Tracking solo muestra órdenes que NO están en verde
+        pedidos_activos = [p for p in pedidos if calcular_status(p) != "Entregado"]
+
+        if not pedidos_activos:
+            st.info("No hay órdenes activas en seguimiento.")
+        else:
+            for pedido in pedidos_activos:
                 pid          = pedido.get("id") or pedido.get("numero_orden")
                 norden_v     = pedido.get("numero_orden", "—")
                 sku_v        = pedido.get("sku", "—")
@@ -306,5 +316,47 @@ def cleanest():
 
                     # Canvas para capturar o actualizar la firma
                     firma_digital(pid, norden_v)
+
+    # ─────────────────────────────────────────
+    # TAB 3: HISTORIAL
+    # ─────────────────────────────────────────
+    with tab_historial:
+        st.markdown("### Historial de Órdenes Completadas 🟢")
+
+        _, col_btn_h = st.columns([5, 1])
+        with col_btn_h:
+            if st.button("🔄 Recargar", key="recargar_historial", use_container_width=True):
+                st.rerun()
+
+        # Reutilizamos pedidos ya cargados; si el tab se renderiza primero, los obtenemos
+        pedidos_hist = obtener_pedidos()
+        completados = [p for p in pedidos_hist if calcular_status(p) == "Entregado"]
+
+        if not completados:
+            st.info("Aún no hay órdenes completadas.")
+        else:
+            for pedido in completados:
+                norden_v   = pedido.get("numero_orden", "—")
+                sku_v      = pedido.get("sku", "—")
+                cantidad_v = int(pedido.get("cantidad", 0))
+                fecha_p    = pedido.get("fecha_promesa", "—")
+                envio1_v   = int(pedido.get("envio1", 0))
+                envio2_v   = int(pedido.get("envio2", 0))
+                envio3_v   = int(pedido.get("envio3", 0))
+                total_env  = envio1_v + envio2_v + envio3_v
+
+                with st.expander(
+                    f"🟢  {norden_v}  |  SKU: {sku_v}  |  Pedido: {cantidad_v} pzs  |  Promesa: {fecha_p}  |  **Entregado**",
+                    expanded=False
+                ):
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("Cantidad Pedida", cantidad_v)
+                    c2.metric("Envío 1", envio1_v)
+                    c3.metric("Envío 2", envio2_v)
+                    c4.metric("Envío 3", envio3_v)
+                    st.progress(1.0, text=f"Enviado: {total_env} / {cantidad_v} pzs (100%)")
+
+                    # Visualización de la firma registrada (solo lectura)
+                    mostrar_firma(norden_v)
 
 cleanest()

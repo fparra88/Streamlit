@@ -426,9 +426,9 @@ if st.session_state.mostrar_formCotizacion:
                             st.success(f"✅ Cotización {st.session_state.codigo_actual} guardada.")
                             st.session_state.items_cotizacion = []
                             st.session_state.codigo_actual = "000"
+                            requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/0c67219b-97b4-4cb3-9e7d-6fe4ece90a6d", json=payload)
                         else:
-                            st.error("❌ Error al guardar en la base de datos.")
-                        requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/0c67219b-97b4-4cb3-9e7d-6fe4ece90a6d", json=payload) 
+                            st.error("❌ Error al guardar en la base de datos.")                         
 
             except Exception as e:
                 # --- ESTE ES EL BLINDAJE ---

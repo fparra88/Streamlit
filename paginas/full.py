@@ -11,6 +11,7 @@ toks = {
 # --- CONFIGURACIÓN DE URLs (Modifícalas después) ---
 URL_GET_PRODUCTOS = f"{API_BASE_URL}/zeutica/productos"
 URL_POST_TRASPASO = f"{API_BASE_URL}/zeutica/traspaso"
+URL_POST_CLEAN = f"{API_BASE_URL}/zeutica/traspaso/clean"
 
 def obtener_inventario():
     """Obtiene los productos y crea un diccionario para el selectbox"""
@@ -31,9 +32,22 @@ def obtener_inventario():
 if 'lista_traspasos' not in st.session_state:
     st.session_state.lista_traspasos = []
 
+URL_DESTINO = {
+    "FULL":  URL_POST_TRASPASO,
+    "CLEAN": URL_POST_CLEAN,
+}
+
 def mostrar_traspasos():
-    st.title("🔄 Traspaso Interno de Stock a FULL")
-    st.markdown("Mueve cantidades de tu stock principal a FULL MELI.")
+    st.title("🔄 Traspaso Interno de Stock")
+    st.markdown("Mueve cantidades de tu stock principal al almacén destino.")
+
+    # Selector de almacén destino — determina el endpoint a usar
+    destino = st.radio(
+        "Almacén destino:",
+        options=["FULL", "CLEAN"],
+        horizontal=True,
+        key="destino_almacen",
+    )
 
     col_prod, col_lista = st.columns([1, 1])
 
@@ -101,19 +115,24 @@ def mostrar_traspasos():
             c1, c2 = st.columns(2)
             
             if c1.button("✅ Confirmar Traspaso", type="primary", use_container_width=True):
-                # Preparamos el JSON para la API
+                # Para CLEAN agregamos stock_clean (mismo valor que stock_bodega) que requiere el backend
+                movimientos = [
+                    {**item, "stock_clean": int(item["stock_bodega"])}
+                    if destino == "CLEAN" else item
+                    for item in st.session_state.lista_traspasos
+                ]
                 payload = {
                     "usuario": st.session_state.get("usuario_nombre", "Error"),
-                    "movimientos": st.session_state.lista_traspasos
+                    "movimientos": movimientos
                 }
                 
                 try:
                     with st.spinner("Ejecutando traspaso en base de datos..."):
-                        res = requests.post(URL_POST_TRASPASO, headers= toks ,json=payload)
+                        res = requests.post(URL_DESTINO[destino], headers=toks, json=payload)
                     
                         if res.status_code == 200:
                             st.balloons()
-                            st.success("✅ Traspaso completado con éxito.")
+                            st.success(f"✅ Traspaso a **{destino}** completado con éxito.{res.text}")
                             st.session_state.lista_traspasos = [] # Limpiamos memoria
                             import time
                             time.sleep(2)
