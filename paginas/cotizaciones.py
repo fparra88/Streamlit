@@ -441,7 +441,63 @@ if st.session_state.mostrar_formCotizacion:
 
 import pandas as pd
 
-# --- SECCIÓN DE CONSULTA --- 
+# --- MODAL DE FIRMA DIGITAL ---
+@st.dialog("✍️ Captura de Firma Digital")
+def modal_firma(codigo_coti, idx_fila):
+    from streamlit_drawable_canvas import st_canvas
+    import io
+    from PIL import Image
+
+    st.markdown(f"**Cotización:** `{codigo_coti}`")
+    st.caption("Dibuja la firma en el recuadro con el ratón o trackpad:")
+
+    canvas_result = st_canvas(
+        fill_color="rgba(255,255,255,0)",
+        stroke_width=2,
+        stroke_color="#000000",
+        background_color="#FFFFFF",
+        height=150,
+        width=450,
+        drawing_mode="freedraw",
+        display_toolbar=True,
+        key="canvas_firma_modal",
+    )
+
+    if st.button("📤 Guardar Firma", type="primary", use_container_width=True):
+        if canvas_result.image_data is None:
+            st.warning("El lienzo está vacío. Dibuja la firma antes de guardar.")
+            return
+
+        # Convertir numpy array → PNG → base64
+        img = Image.fromarray(canvas_result.image_data.astype("uint8"), mode="RGBA")
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        payload = {
+            "codigo_cotizacion": codigo_coti,
+            "firma_base64": img_b64,
+            "usuario": st.session_state.get("usuario_nombre", "sistema"),
+            "fecha_firma": datetime.now().isoformat(),
+        }
+
+        try:
+            res = requests.post(f"{API_BASE_URL}/zeutica/firma-ventas", headers=toks, json=payload)
+            if res.status_code in (200, 201):
+                # Persistir base64 en el DataFrame guardado en session_state
+                if "df_cotizaciones" in st.session_state:
+                    st.session_state.df_cotizaciones.at[idx_fila, "firma_base64"] = img_b64
+                st.balloons()
+                st.success("✅ Firma guardada correctamente.")
+                import time
+                time.sleep(2)
+                st.rerun()
+            else:
+                st.error(f"Error al enviar firma: {res.status_code} — {res.text}")
+        except Exception as e:
+            st.error(f"Error de conexión: {e}")
+
+# --- SECCIÓN DE CONSULTA ---
 st.button("Consulta Cotización ➕", on_click=abrir_form, key="btn_consulta_coti_principal")
 
 if st.session_state.mostrar_form:
@@ -481,6 +537,9 @@ if st.session_state.mostrar_form:
                     }
 
                     # Mostramos el editor de datos interactivo
+                    # Persistir el df en session_state para que modal_firma pueda actualizarlo
+                    st.session_state.df_cotizaciones = df.copy()
+
                     df_editado = st.data_editor(
                         df,
                         column_config=config_columnas,
@@ -489,6 +548,19 @@ if st.session_state.mostrar_form:
                         disabled=columnas_bloqueadas,
                         key="editor_cotizaciones",
                     )
+
+                    # --- SELECTOR Y BOTÓN DE FIRMA ---
+                    codigos = df["codigo_cotizacion"].tolist() if "codigo_cotizacion" in df.columns else []
+                    if codigos:
+                        col_sel, col_btn_firma = st.columns([3, 1])
+                        sel_firma = col_sel.selectbox(
+                            "Selecciona cotización para firmar:",
+                            codigos,
+                            key="sel_firma_coti",
+                        )
+                        idx_sel = df.index[df["codigo_cotizacion"] == sel_firma][0]
+                        if col_btn_firma.button("✍️ Firmar Seleccionado", use_container_width=True):
+                            modal_firma(sel_firma, idx_sel)
 
                     # Links de descarga con atributo download (evita página en blanco)
                     if 'pdf' in df.columns and df['pdf'].notna().any():

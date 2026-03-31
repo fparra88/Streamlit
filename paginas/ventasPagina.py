@@ -368,8 +368,8 @@ if __name__ == "__main__":
                     if errores == 0:
                         st.balloons()
                         st.success(f"✅ Venta {id_venta_generado} registrada con éxito.", icon='🎉')
-
                         st.session_state.carrito_ventas = [] # Limpiamos memoria
                         import time
                         time.sleep(2)
                         st.rerun()
+
