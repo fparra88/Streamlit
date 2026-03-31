@@ -531,7 +531,7 @@ if st.session_state.mostrar_form:
                         ),
                         "metodo_pago": st.column_config.SelectboxColumn(
                             "Método de Pago",
-                            options=["EFECTIVO", "TRANSFERENCIA", "TARJETA", "DEPOSITO"]
+                            options=["EFECTIVO", "TRANSFERENCIA", "TARJETA", "DEPOSITO", "POR DEFINIR"]
                         ),
                         "pdf": None,  # Ocultamos la columna base64 cruda
                     }

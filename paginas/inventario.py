@@ -82,7 +82,7 @@ if "productos_data" not in st.session_state:
 if "mensaje_exito" not in st.session_state:
     st.session_state.mensaje_exito = False
 
-if st.session_state.usuario_nombre == "fparra":
+if st.session_state.usuario_nombre == "gerencia":
     col1, col2 = st.columns([2, 1])
     
     with col1:
