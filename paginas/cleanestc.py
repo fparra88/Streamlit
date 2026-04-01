@@ -1,5 +1,7 @@
 import streamlit as st
 import requests
+from datetime import datetime
+import random
 
 API_BASE_URL = st.session_state.ip
 
@@ -160,8 +162,10 @@ def cleanest():
 
             with col1:
                 norden = st.text_input("Número de Orden", value="OC")
+                skus_permitidos = ["ESPFARBLA", "CUBBCADLD", "TAPCUABLA24","UNIAZLCH", "UNIAZLXL", "UNIAZLMED", "UNIAZLGDE", "UNIAZL2XL"]
                 sku_input = obtener_inventario()
-                opciones_validas = list(sku_input.keys()) if sku_input else []
+                # Las claves del dict tienen formato "SKU (nombre)", por eso comparamos contra item['sku']
+                opciones_validas = [key for key, item in sku_input.items() if item.get("sku") in skus_permitidos] if sku_input else []
                 seleccion = st.selectbox("SKU / Producto", options=opciones_validas)
 
             with col2:
@@ -335,6 +339,13 @@ def cleanest():
         if not completados:
             st.info("Aún no hay órdenes completadas.")
         else:
+            # Registro en sesión de órdenes ya enviadas como venta, para no duplicar
+            if "ventas_enviadas" not in st.session_state:
+                st.session_state.ventas_enviadas = set()
+
+            # Cargamos inventario una sola vez para todo el loop
+            inv = obtener_inventario()
+
             for pedido in completados:
                 norden_v   = pedido.get("numero_orden", "—")
                 sku_v      = pedido.get("sku", "—")
@@ -355,8 +366,35 @@ def cleanest():
                     c3.metric("Envío 2", envio2_v)
                     c4.metric("Envío 3", envio3_v)
                     st.progress(1.0, text=f"Enviado: {total_env} / {cantidad_v} pzs (100%)")
-
                     # Visualización de la firma registrada (solo lectura)
                     mostrar_firma(norden_v)
+
+                # Enviar venta solo la primera vez que esta orden aparece como Entregado
+                if norden_v not in st.session_state.ventas_enviadas:
+                    item_data   = next((v for v in inv.values() if v.get("sku") == sku_v), {})
+                    nombre_prod = item_data.get("nombre", sku_v)
+                    precio_clean = float(item_data.get("precio_clean") or 0.0)
+
+                    payload = {
+                        "id_venta": str(random.randint(1000000000, 9999999999)),
+                        "sku": sku_v,
+                        "stock_bodega": cantidad_v,
+                        "precio": precio_clean,
+                        "producto": nombre_prod,
+                        "fecha": datetime.now().isoformat(),
+                        "nombreComprador": "CLEANEST CHOICE",
+                        "otros": "FARMACEUTICA",
+                        "plataforma": "SISTEMA ZEUTICA",
+                        "usuario": st.session_state.usuario_nombre
+                    }
+
+                    res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", headers=toks, json=payload)
+                    if res.status_code == 200:
+                        # Marcamos la orden para no volver a enviarla en esta sesión
+                        st.session_state.ventas_enviadas.add(norden_v)
+                        st.success(f"✅ Venta de orden {norden_v} ingresada correctamente")
+                        st.balloons()
+                    else:
+                        st.error(f"❌ Error al enviar venta {norden_v}: {res.text}")            
 
 cleanest()
