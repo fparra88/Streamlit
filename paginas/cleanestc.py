@@ -325,7 +325,7 @@ def cleanest():
     # TAB 3: HISTORIAL
     # ─────────────────────────────────────────
     with tab_historial:
-        st.markdown("### Historial de Órdenes Completadas 🟢")
+        st.markdown("### Historial de Ordenes Completadas 🟢")
 
         _, col_btn_h = st.columns([5, 1])
         with col_btn_h:
@@ -369,14 +369,17 @@ def cleanest():
                     # Visualización de la firma registrada (solo lectura)
                     mostrar_firma(norden_v)
 
-                # Enviar venta solo la primera vez que esta orden aparece como Entregado
-                if norden_v not in st.session_state.ventas_enviadas:
+                # Enviar venta solo la primera vez que esta orden aparece como Entregado 
+                norden_v = norden_v[2:] 
+                res_check = requests.get(f"{API_BASE_URL}/zeutica/verifica-venta/{norden_v}", headers=toks)
+                ya_existe = res_check.json().get("registrada", False)    
+                if ya_existe:          
                     item_data   = next((v for v in inv.values() if v.get("sku") == sku_v), {})
                     nombre_prod = item_data.get("nombre", sku_v)
                     precio_clean = float(item_data.get("precio_clean") or 0.0)
 
                     payload = {
-                        "id_venta": str(random.randint(1000000000, 9999999999)),
+                        "id_venta": norden_v,
                         "sku": sku_v,
                         "stock_bodega": cantidad_v,
                         "precio": precio_clean,
@@ -390,11 +393,10 @@ def cleanest():
 
                     res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", headers=toks, json=payload)
                     if res.status_code == 200:
-                        # Marcamos la orden para no volver a enviarla en esta sesión
-                        st.session_state.ventas_enviadas.add(norden_v)
+                                                
                         st.success(f"✅ Venta de orden {norden_v} ingresada correctamente")
                         st.balloons()
                     else:
-                        st.error(f"❌ Error al enviar venta {norden_v}: {res.text}")            
-
+                        st.error(f"❌ Error al enviar venta {norden_v}: {res.text}")    
+                  
 cleanest()

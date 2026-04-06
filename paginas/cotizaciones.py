@@ -342,6 +342,7 @@ if st.session_state.mostrar_formCotizacion:
         opciones_comentarios = [
             "ENVIO GRATIS EN COMPRAS MAYORES A $7000.00 MAS IVA, TIEMPO DE ENTREGA DE 4-7 DIAS HABILES..",                      
             "EL ENVIO SE REALIZARA POR PAQUETERIA PAQUETE EXPRESS EN CASO DE REQUERIR UNA PAQUETERIA EN PARTICULAR ESTA SE COTIZARA DE MANERA ADICIONAL.",
+            "ENTREGA EN BODEGA, HORARIO DE 10AM A 2PM",
             "OTROS..."            
         ]
             

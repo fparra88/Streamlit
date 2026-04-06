@@ -81,7 +81,7 @@ def app():
             telefono = st.text_input("Teléfono")
             cp = st.text_input("Codigo Postal(obligatorio sat)")
             usocfdi = st.selectbox("Selecciona el uso de cfdi", usoscfdi)
-            
+            frecuencia = st.text_input("Ingresa la frecuencia de compra del cliente.", value= "Mensual")        
         
         with col2:
             regimenes = ["601 - General de Ley Personas Morales",
@@ -132,6 +132,7 @@ def app():
                 "cp": cp,
                 "regimen": regimen,
                 "usocfdi": usocfdi,
+                "frecuencia": frecuencia,
                 "usuario": st.session_state.usuario_nombre
             }
 
