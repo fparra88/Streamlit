@@ -374,12 +374,13 @@ if __name__ == "__main__":
                             res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", headers=toks, json=payload)
                             if res.status_code != 200:
                                 errores += 1
-                                st.error(f"Fallo al guardar: {item['sku']}")
+                                st.error(f"Fallo al guardar: {item['sku']}")                            
 
                     if errores == 0:
                         st.balloons()
                         st.success(f"✅ Venta {id_venta_generado} registrada con éxito.", icon='🎉')
                         st.session_state.carrito_ventas = [] # Limpiamos memoria
+                        requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
                         import time
                         time.sleep(2)
                         st.rerun()

@@ -48,18 +48,21 @@ def actualizar_pedido(pedido_id, payload):
     except:
         return False
 
-def mostrar_firma(norden_v):
-    """Muestra un botón toggle; solo consulta y renderiza la firma si el usuario lo activa."""
+def mostrar_firma(norden_v, uid):
+    """Muestra un botón toggle; solo consulta y renderiza la firma si el usuario lo activa.
+    uid debe ser el id único del pedido en DB para evitar colisión de keys cuando hay
+    múltiples órdenes con el mismo numero_orden."""
     import base64
     from PIL import Image
     import io
 
-    key_toggle = f"ver_firma_{norden_v}"
+    # Usamos uid (id de DB) como discriminador de clave, no norden_v, que puede repetirse
+    key_toggle = f"ver_firma_{uid}"
     if key_toggle not in st.session_state:
         st.session_state[key_toggle] = False
 
     label = "🔒 Ocultar Firma" if st.session_state[key_toggle] else "🖊️ Ver Firma Registrada"
-    if st.button(label, key=f"btn_ver_firma_{norden_v}", use_container_width=True):
+    if st.button(label, key=f"btn_ver_firma_{uid}", use_container_width=True):
         st.session_state[key_toggle] = not st.session_state[key_toggle]
 
     if st.session_state[key_toggle]:
@@ -67,7 +70,7 @@ def mostrar_firma(norden_v):
             res = requests.get(
                 f"{API_BASE_URL}/zeutica/obtener-firma",
                 headers=toks,
-                params={"numero_orden": norden_v},
+                params={"numero_orden": norden_v},  # norden_v se usa solo para la API, no como key
                 timeout=5,
             )
             if res.status_code == 200:
@@ -162,7 +165,7 @@ def cleanest():
 
             with col1:
                 norden = st.text_input("Número de Orden", value="OC")
-                skus_permitidos = ["ESPFARBLA", "CUBBCADLD", "TAPCUABLA24","UNIAZLCH", "UNIAZLXL", "UNIAZLMED", "UNIAZLGDE", "UNIAZL2XL"]
+                skus_permitidos = ["ESPFARBLA", "CUBBCADLD", "TAPCUABLA24","UNIAZLCH", "UNIAZLXL", "UNIAZLMED", "UNIAZLGDE", "UNIAZL2XL", "UNIAZLXXL"]
                 sku_input = obtener_inventario()
                 # Las claves del dict tienen formato "SKU (nombre)", por eso comparamos contra item['sku']
                 opciones_validas = [key for key, item in sku_input.items() if item.get("sku") in skus_permitidos] if sku_input else []
@@ -316,7 +319,7 @@ def cleanest():
                             st.error("Error al actualizar. Verifica la conexión con el servidor.")
 
                     # Visualización de la firma ya registrada
-                    mostrar_firma(norden_v)
+                    mostrar_firma(norden_v, uid=pid)
 
                     # Canvas para capturar o actualizar la firma
                     firma_digital(pid, norden_v)
@@ -347,6 +350,7 @@ def cleanest():
             inv = obtener_inventario()
 
             for pedido in completados:
+                pid_hist   = pedido.get("id") or pedido.get("numero_orden")  # id único para keys
                 norden_v   = pedido.get("numero_orden", "—")
                 sku_v      = pedido.get("sku", "—")
                 cantidad_v = int(pedido.get("cantidad", 0))
@@ -367,7 +371,7 @@ def cleanest():
                     c4.metric("Envío 3", envio3_v)
                     st.progress(1.0, text=f"Enviado: {total_env} / {cantidad_v} pzs (100%)")
                     # Visualización de la firma registrada (solo lectura)
-                    mostrar_firma(norden_v)
+                    mostrar_firma(norden_v, uid=pid_hist)
 
                 # Enviar venta solo la primera vez que esta orden aparece como Entregado 
                 norden_v = norden_v[2:] 

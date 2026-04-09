@@ -34,21 +34,36 @@ controller = CookieController()
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
-cookie_session = controller.get("zeutica_session")
-if cookie_session and not st.session_state.autenticado:
+# El CookieController necesita un ciclo de render para leer las cookies del browser;
+# en el primer render puede lanzar TypeError, lo capturamos y esperamos el rerun automático
+try:
+    cookie_session = controller.get("zeutica_session")
+    cookie_token = controller.get("zeutica_token")
+except Exception:
+    cookie_session = None
+    cookie_token = None
+
+# Restauramos sesión completa desde cookies; sin token no hay acceso a la API
+if cookie_session and cookie_token and not st.session_state.autenticado:
     st.session_state.autenticado = True
     st.session_state.usuario_nombre = cookie_session
+    st.session_state.token = cookie_token
+    st.session_state.ip = "http://10.0.9.227:8090" #url produccion
+    #st.session_state.ip = "http://127.0.0.1:8000"
 
 def validar_acceso(user, pw):
     try:
         res = requests.post(f"{API_BASE_URL}/login", json={"usuario": user, "password": pw})
         if res.status_code == 200:
+            token = res.json()["access_token"]
             st.session_state.autenticado = True
             st.session_state.usuario_nombre = user  # Corregido: era 'usuario'
-            st.session_state.token = res.json()["access_token"]
+            st.session_state.token = token
             st.session_state.ip = "http://10.0.9.227:8090" #url produccion
             #st.session_state.ip = "http://127.0.0.1:8000"
-            controller.set("zeutica_session", user, max_age=1800) 
+            # Guardamos usuario y token en cookies para sobrevivir el refresh
+            controller.set("zeutica_session", user, max_age=1800)
+            controller.set("zeutica_token", token, max_age=1800)
             st.success("¡Bienvenido!")
             st.rerun()
         else:
@@ -254,6 +269,7 @@ else:
         
         if st.sidebar.button("Cerrar Sesión"):
             controller.remove("zeutica_session")
+            controller.remove("zeutica_token")
             st.session_state.autenticado = False
             st.rerun()
         

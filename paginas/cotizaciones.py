@@ -490,6 +490,7 @@ def modal_firma(codigo_coti, idx_fila):
                     st.session_state.df_cotizaciones.at[idx_fila, "firma_base64"] = img_b64
                 st.balloons()
                 st.success("✅ Firma guardada correctamente.")
+                requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
                 import time
                 time.sleep(2)
                 st.rerun()
