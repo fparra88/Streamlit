@@ -130,12 +130,14 @@ def _modal_firma(pid, norden_v):
             "firma_base64": img_b64,
             "usuario": st.session_state.get("usuario_nombre", "sistema"),
             "fecha_firma": datetime.now().isoformat(),
+            "firma_cleanest": "Se firmo una orden de cleanest"
         }
 
         try:
             res = requests.post(f"{API_BASE_URL}/zeutica/efirma", headers=toks, json=payload)
             if res.status_code in (200, 201):
                 st.success("✅ Firma enviada correctamente.")
+                requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload) # Notificacion de telegram
                 st.rerun()
             else:
                 st.error(f"Error al enviar firma: {res.status_code} — {res.text}")

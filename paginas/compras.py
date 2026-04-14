@@ -315,7 +315,36 @@ else:
 
 
 # ============================================================================
-# 9. PANEL LATERAL
+# 9. HISTORIAL DE COMPRAS
+# ============================================================================
+st.divider()
+st.subheader("📋 Historial de Compras")
+
+if st.button("🔍 Consultar compras registradas", use_container_width=True):
+    try:
+        with st.spinner("Cargando historial..."):
+            resp_hist = requests.get(
+                f"{API_BASE_URL}/zeutica/registro-compras",
+                headers=toks, timeout=10
+            )
+        if resp_hist.status_code == 200:
+            data = resp_hist.json()
+            # Soporta respuesta como lista directa o dentro de una llave
+            if isinstance(data, dict):
+                data = data.get("compras", data.get("data", []))
+            if data:
+                df_hist = pd.DataFrame(data)
+                st.dataframe(df_hist, use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay compras registradas.")
+        else:
+            st.error(f"❌ Error al obtener historial: {resp_hist.status_code} - {resp_hist.text}")
+    except Exception as e:
+        st.error(f"❌ No se pudo conectar con el servidor: {e}")
+
+
+# ============================================================================
+# 10. PANEL LATERAL
 # ============================================================================
 with st.sidebar:
     st.info(
