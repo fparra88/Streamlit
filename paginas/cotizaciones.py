@@ -499,6 +499,29 @@ def modal_firma(codigo_coti, idx_fila):
         except Exception as e:
             st.error(f"Error de conexión: {e}")
 
+# --- MODAL VISOR DE FIRMA ---
+@st.dialog("🔍 Visor de Firma Digital")
+def modal_ver_firma(codigo_coti, firma_b64):
+    st.markdown(f"**Cotización:** `{codigo_coti}`")
+    if not firma_b64 or not str(firma_b64).strip():
+        st.warning("Esta cotización aún no tiene firma registrada.")
+        return
+
+    try:
+        # Decodificamos base64 → bytes → imagen para mostrar en pantalla
+        img_bytes = base64.b64decode(firma_b64)
+        st.image(img_bytes, caption=f"Firma — {codigo_coti}", use_container_width=True)
+
+        # Enlace de descarga de la imagen PNG
+        href = (
+            f'<a href="data:image/png;base64,{firma_b64}" '
+            f'download="firma_{codigo_coti}.png" '
+            f'style="text-decoration:none;">⬇️ Descargar firma PNG</a>'
+        )
+        st.markdown(href, unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"No se pudo renderizar la firma: {e}")
+
 # --- SECCIÓN DE CONSULTA ---
 st.button("Consulta Cotización ➕", on_click=abrir_form, key="btn_consulta_coti_principal")
 
@@ -535,7 +558,8 @@ if st.session_state.mostrar_form:
                             "Método de Pago",
                             options=["EFECTIVO", "TRANSFERENCIA", "TARJETA", "DEPOSITO", "POR DEFINIR"]
                         ),
-                        "pdf": None,  # Ocultamos la columna base64 cruda
+                        "pdf": None,          # Ocultamos base64 del PDF
+                        "firma_envio": None,  # Ocultamos base64 de la firma
                     }
 
                     # Mostramos el editor de datos interactivo
@@ -551,10 +575,10 @@ if st.session_state.mostrar_form:
                         key="editor_cotizaciones",
                     )
 
-                    # --- SELECTOR Y BOTÓN DE FIRMA ---
+                    # --- SELECTOR Y BOTONES DE FIRMA / VISOR ---
                     codigos = df["codigo_cotizacion"].tolist() if "codigo_cotizacion" in df.columns else []
                     if codigos:
-                        col_sel, col_btn_firma = st.columns([3, 1])
+                        col_sel, col_btn_firma, col_btn_ver = st.columns([3, 1, 1])
                         sel_firma = col_sel.selectbox(
                             "Selecciona cotización para firmar:",
                             codigos,
@@ -563,6 +587,18 @@ if st.session_state.mostrar_form:
                         idx_sel = df.index[df["codigo_cotizacion"] == sel_firma][0]
                         if col_btn_firma.button("✍️ Firmar Seleccionado", use_container_width=True):
                             modal_firma(sel_firma, idx_sel)
+
+                        # Leer firma desde session_state para tener el valor más actualizado
+                        df_ref = st.session_state.get("df_cotizaciones", df)
+                        firma_b64 = None
+                        if "firma_envio" in df_ref.columns:
+                            val = df_ref.at[idx_sel, "firma_envio"]
+                            # Descartar NaN de pandas (float) y strings vacíos/nulos
+                            if val is not None and not (isinstance(val, float) and pd.isna(val)) and str(val).strip():
+                                firma_b64 = str(val)
+
+                        if col_btn_ver.button("🔍 Ver Firma", use_container_width=True):
+                            modal_ver_firma(sel_firma, firma_b64)
 
                     # Links de descarga con atributo download (evita página en blanco)
                     if 'pdf' in df.columns and df['pdf'].notna().any():

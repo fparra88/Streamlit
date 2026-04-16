@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from datetime import datetime
+import time
 
 # 1. Validación de seguridad (Evita crasheos si recargan la página)
 if "token" not in st.session_state or "ip" not in st.session_state:
@@ -106,7 +107,8 @@ with st.form("Registro de SKU"):
                 "fecha": fecha_actual,
                 "nombreComprador": "USO DE BODEGA",
                 "otros": "ESTE ARTICULO FUE USADO EN ALMACEN",
-                "plataforma": "BODEGA"
+                "plataforma": "BODEGA",
+                "usuario": st.session_state.usuario_nombre
             }
             
             # CORRECCIÓN DE INDENTACIÓN: El try ahora está DENTRO del botón
@@ -115,6 +117,9 @@ with st.form("Registro de SKU"):
                 
                 if res.status_code == 200:
                     st.success("✅ Gasto registrado correctamente")
+                    st.balloons()                    
+                    time.sleep(2)
+                    st.rerun()
                 else:
                     st.error(f"❌ Fallo al guardar: Código {res.status_code} - {res.text}")
             except Exception as e:
