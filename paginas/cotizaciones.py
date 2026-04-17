@@ -556,7 +556,7 @@ if st.session_state.mostrar_form:
                         ),
                         "metodo_pago": st.column_config.SelectboxColumn(
                             "Método de Pago",
-                            options=["EFECTIVO", "TRANSFERENCIA", "TARJETA", "DEPOSITO", "POR DEFINIR"]
+                            options=["EFECTIVO", "CREDITO", "TRANSFERENCIA", "TARJETA", "DEPOSITO", "POR DEFINIR"]
                         ),
                         "pdf": None,          # Ocultamos base64 del PDF
                         "firma_envio": None,  # Ocultamos base64 de la firma
@@ -627,9 +627,9 @@ if st.session_state.mostrar_form:
                             if res_update.status_code == 200:
                                  
                                 st.success("✅ ¡Facturas vinculadas correctamente en la base de datos!")
-                                time.sleep(2)     
-             
-            
+                                st.balloons()
+                                time.sleep(2)   
+                                requests.post('https://n8n-n8n.i4mjht.easypanel.host/webhook/0c67219b-97b4-4cb3-9e7d-6fe4ece90a6d',json= payload)
                                 st.rerun() 
                             else:
                                 st.error(f"Error: {res_update.text}")

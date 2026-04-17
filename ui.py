@@ -140,6 +140,7 @@ if not st.session_state.autenticado:
             clave = st.text_input("Contraseña", type="password")
         
         if st.button("Entrar"):
+            usuario = usuario.lower()
             validar_acceso(usuario, clave)
 
 #AQUI ESTABA EL ERROR: El else debe ir a la altura del if not autenticado
@@ -167,25 +168,70 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    selected = option_menu(
-        menu_title=None,  # No necesitamos título de menú
-        options=["Dashboard","Inventario", "Ventas", "Cotizaciones", "Clientes", "Reportes", "Traspaso FULL", "Gastos Operativos", "CleanestChoice" ,"Compras"], # Opciones del menú
-        icons=["people","archive", "cash-stack", "file-earmark-text", "people", "archive","archive", "people", "archive" , "cash-stack"], # Iconos de bootstrap
-        menu_icon="cast", 
-        default_index=0, 
-        orientation="horizontal",
-        styles={
-            "container": {"padding": "0!important", "background-color": "#f0f2f6"},
-            "icon": {"color": "#004a99", "font-size": "18px"}, 
-            "nav-link": {
-                "font-size": "16px", 
-                "text-align": "center", 
-                "margin": "0px", 
-                "color": "#444"
+    with st.sidebar:
+        st.image("logo.png", use_container_width=True)
+        st.markdown(f"👤 **{st.session_state.get('usuario_nombre', 'usuario')}**")
+        st.divider()
+
+        selected = option_menu(
+            menu_title="Navegación",
+            options=["Dashboard", "Inventario", "Ventas", "Cotizaciones", "Clientes",
+                     "Reportes", "Traspaso FULL", "Gastos Operativos", "Cuentas Pendientes",
+                     "CleanestChoice", "Compras"],
+            icons=["speedometer2", "boxes", "cash-coin", "file-earmark-richtext",
+                   "person-lines-fill", "bar-chart-line", "arrow-left-right",
+                   "wallet2", "clock-history", "stars", "cart4"],
+            menu_icon="grid-3x3-gap-fill",
+            default_index=0,
+            orientation="vertical",
+            styles={
+                "container": {
+                    "padding": "8px 4px",
+                    "background-color": "#0d1b2a",
+                    "border-radius": "12px",
+                },
+                "menu-title": {
+                    "color": "#7eb3e8",
+                    "font-size": "13px",
+                    "font-weight": "600",
+                    "letter-spacing": "1px",
+                    "text-transform": "uppercase",
+                    "padding-bottom": "6px",
+                },
+                "menu-icon": {"color": "#7eb3e8", "font-size": "16px"},
+                "icon": {"color": "#7eb3e8", "font-size": "16px"},
+                "nav-link": {
+                    "font-size": "14px",
+                    "color": "#c8d8e8",
+                    "border-radius": "8px",
+                    "margin": "2px 0px",
+                    "padding": "9px 14px",
+                    "--hover-color": "#1e3a5f",
+                },
+                "nav-link-selected": {
+                    "background-color": "#004a99",
+                    "color": "white",
+                    "font-weight": "600",
+                    "box-shadow": "0 2px 8px rgba(0,74,153,0.4)",
+                },
             },
-            "nav-link-selected": {"background-color": "#004a99", "color": "white"},
-        }
-    )
+        )
+
+        st.divider()
+        s = test_server()
+        if isinstance(s, str):
+            st.error(s)
+        else:
+            st.success("🟢 Servidor activo")
+
+        if st.button("🗑️ Limpiar Caché", use_container_width=True):
+            st.cache_data.clear()
+
+        if st.button("🚪 Cerrar Sesión", use_container_width=True, type="primary"):
+            controller.remove("zeutica_session")
+            controller.remove("zeutica_token")
+            st.session_state.autenticado = False
+            st.rerun()
 
     # ---  LÓGICA DE PÁGINAS ---
     if selected == "Dashboard":
@@ -233,6 +279,17 @@ else:
         with open("paginas/gastos.py", encoding="utf-8") as f:
             exec(f.read())
 
+    elif selected == "Cuentas Pendientes":
+        if st.session_state.usuario_nombre == "gerencia":
+            # Lee y ejecuta full        
+            with open("paginas/por_cobrar-pagar.py", encoding="utf-8") as f:
+                exec(f.read())
+        else:
+            # 3. Mensaje de error persistente
+            st.error("### 🛑 ACCESO RESTRINGIDO")
+            st.subheader("Sección: Cuentas Pendientes")
+            st.write(f"Lo sentimos **{st.session_state.get('usuario_nombre', 'Usuario')}**, no tienes los permisos necesarios para visualizar esta información.")
+
     elif selected == "CleanestChoice":
         # Lee y ejecuta full        
         with open("paginas/cleanestc.py", encoding="utf-8") as f:
@@ -249,27 +306,4 @@ else:
             st.subheader("Sección: Compras")
             st.write(f"Lo sentimos **{st.session_state.get('usuario_nombre', 'Usuario')}**, no tienes los permisos necesarios para visualizar esta información.")
 
-    # El sidebar también debe ir dentro del entorno autenticado
-    with st.sidebar: 
-        st.image("logo.png", use_container_width=True)
-        st.title("Panel de Procesos")
-        s = test_server()
-        # Verificamos si s es un string o el response, para evitar error con .json() si falla
-        if isinstance(s, str):
-            st.sidebar.error(s)
-        else:
-            st.sidebar.info(s.json())
-    
-        if st.button("Limpiar Caché"):
-            st.cache_data.clear()
-        
-        st.sidebar.info("Panel Gestion Procesos")
-        # Corregido: uso de comillas simples dentro del f-string
-        st.sidebar.info(f"Usuario logeado: {st.session_state.get('usuario_nombre', 'usuario')}") 
-        
-        if st.sidebar.button("Cerrar Sesión"):
-            controller.remove("zeutica_session")
-            controller.remove("zeutica_token")
-            st.session_state.autenticado = False
-            st.rerun()
         

@@ -61,7 +61,7 @@ def obtener_cotizaciones():
             # Mapeamos cotizaciones por ID y Cliente para el selectbox
             opciones = {}
             for item in cotizaciones:
-                if isinstance(item, dict):
+                if isinstance(item, dict) and int(item.get('vendido', 0)) != 1:
                     subtotal = float(item.get('subtotal', 0)) if item.get('subtotal') else 0.0
                     etiqueta = f"ID: {item.get('codigo_cotizacion')} - Cliente: {item.get('empresa', 'N/A')} (${subtotal:.2f})"
                     opciones[etiqueta] = item
@@ -374,7 +374,13 @@ if __name__ == "__main__":
                             res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", headers=toks, json=payload)
                             if res.status_code != 200:
                                 errores += 1
-                                st.error(f"Fallo al guardar: {item['sku']}")                            
+                                st.error(f"Fallo al guardar: {item['sku']}") 
+
+                            # Enviamos a tabla cotizaciones que fue vendida
+                            codigo_cot = cotizacion_seleccionada.split("ID: ")[-1].split(" -")[0].strip()
+                            res2 = requests.post(f'{API_BASE_URL}/zeutica/cotizaciones/vendido', headers=toks, json={"vendido": 1, "codigo_cotizacion": codigo_cot})                           
+                            if res2 == 200:
+                                st.info(f'La cotizacion {codigo_cot} ha sido vendida con exito!')
 
                     if errores == 0:
                         st.balloons()
