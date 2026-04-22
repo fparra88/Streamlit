@@ -177,10 +177,10 @@ else:
             menu_title="Navegación",
             options=["Dashboard", "Inventario", "Ventas", "Cotizaciones", "Clientes",
                      "Reportes", "Traspaso FULL", "Gastos Operativos", "Cuentas Pendientes",
-                     "CleanestChoice", "Compras"],
+                     "CleanestChoice", "Compras", "Monitor Cobranza"],
             icons=["speedometer2", "boxes", "cash-coin", "file-earmark-richtext",
                    "person-lines-fill", "bar-chart-line", "arrow-left-right",
-                   "wallet2", "clock-history", "stars", "cart4"],
+                   "wallet2", "clock-history", "stars", "cart4", "eye"],
             menu_icon="grid-3x3-gap-fill",
             default_index=0,
             orientation="vertical",
@@ -280,7 +280,7 @@ else:
             exec(f.read())
 
     elif selected == "Cuentas Pendientes":
-        if st.session_state.usuario_nombre == "gerencia":
+        if st.session_state.usuario_nombre == "fparra":
             # Lee y ejecuta full        
             with open("paginas/por_cobrar-pagar.py", encoding="utf-8") as f:
                 exec(f.read())
@@ -306,4 +306,7 @@ else:
             st.subheader("Sección: Compras")
             st.write(f"Lo sentimos **{st.session_state.get('usuario_nombre', 'Usuario')}**, no tienes los permisos necesarios para visualizar esta información.")
 
-        
+    elif selected == "Monitor Cobranza":
+        # Lee y ejecuta full        
+        with open("paginas/monitor_cobranza.py", encoding="utf-8") as f:
+            exec(f.read())    

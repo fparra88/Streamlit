@@ -70,3 +70,116 @@ if rep_traspasos:
 
     except Exception as e:
         st.error(f"Error de conexion {e}")
+
+st.divider()
+
+# ====== SECCIÓN DE WEB SCRAPING ======
+st.header("Scraping de Productos - ZVG")
+st.info("Consulta productos desde https://zvg.es/productos/")
+
+scrap_button = st.button("Obtener Productos ZVG")
+
+if scrap_button:
+    try:
+        with st.spinner("Realizando scraping..."):
+            # Importar BeautifulSoup
+            from bs4 import BeautifulSoup
+            import pandas as pd
+            
+            # URL a scraping
+            url = "https://www.espn.com.mx/beisbol/mlb/estadisticas/jugador/_/tabla/batting/ordenar/atBats/dir/desc"
+            
+            # Headers para evitar bloqueos
+            headers = {
+                'User-Agent': '(windows NT 10.0; Win64; x64)',
+                 "Accept-Language": "es-MX,es;q=0.9"
+            }
+            
+            # Realizar petición web            
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            # Parsear HTML
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Extraer productos (ajusta los selectores según la estructura del sitio)
+            productos = []
+            
+            # Buscar elementos de producto (estos selectores pueden necesitar ajuste)
+            product_elements = soup.find_all('div', class_='product')
+            
+            if not product_elements:
+                # Alternativa: buscar por otra estructura común
+                product_elements = soup.find_all('article', class_='product-item')
+            
+            if not product_elements:
+                # Otra alternativa más genérica
+                product_elements = soup.find_all('li', class_='product')
+            
+            for element in product_elements:
+                try:
+                    # Extraer nombre
+                    nombre = element.find('h2', class_='product-name')
+                    nombre = nombre.text.strip() if nombre else 'N/A'
+                    
+                    # Extraer precio
+                    precio = element.find('span', class_='price')
+                    precio = precio.text.strip() if precio else 'N/A'
+                    
+                    # Extraer descripción o categoría
+                    descripcion = element.find('p', class_='description')
+                    descripcion = descripcion.text.strip() if descripcion else 'N/A'
+                    
+                    # Extraer enlace
+                    enlace = element.find('a', href=True)
+                    enlace = enlace['href'] if enlace else 'N/A'
+                    
+                    productos.append({
+                        'nombre': nombre,
+                        'precio': precio,
+                        'descripcion': descripcion,
+                        'enlace': enlace
+                    })
+                
+                except Exception as e:
+                    st.warning(f"Error extrayendo elemento: {e}")
+                    continue
+            
+            # Crear DataFrame
+            if productos:
+                df_productos = pd.DataFrame(productos)
+                
+                st.success(f"✅ Se extrajeron {len(df_productos)} productos")
+                
+                # Mostrar tabla
+                st.dataframe(
+                    df_productos,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "nombre": st.column_config.TextColumn("Producto", width=250),
+                        "precio": st.column_config.TextColumn("Precio"),
+                        "descripcion": st.column_config.TextColumn("Descripción", width=300),
+                        "enlace": st.column_config.LinkColumn("Enlace", display_text="Ver producto")
+                    }
+                )
+                
+                # Descargar como CSV
+                csv = df_productos.to_csv(index=False)
+                st.download_button(
+                    label="Descargar como CSV",
+                    data=csv,
+                    file_name="productos_zvg.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.warning("⚠️ No se encontraron productos. Los selectores CSS pueden haber cambiado en el sitio.")
+                st.info("Tip: Inspecciona el sitio web y proporciona los selectores CSS correctos.")
+    
+    except requests.exceptions.Timeout:
+        st.error("❌ Timeout: El sitio tardó demasiado en responder.")
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Error de conexión: No se pudo acceder al sitio.")
+    except Exception as e:
+        st.error(f"❌ Error durante el scraping: {e}")
+

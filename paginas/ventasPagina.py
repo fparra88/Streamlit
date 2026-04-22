@@ -334,7 +334,7 @@ if __name__ == "__main__":
                 diccionario_clientes = obtener_clientes()
                 nom_cliente = st.selectbox("Cliente:", list(diccionario_clientes.keys()))
                 medio = st.selectbox("Plataforma:", ["Mercado Libre", "Amazon", "Directo", "Local"])
-                met_pago = st.text_input("Método de pago (Ej. Tarjeta, Efectivo):", value="CONTADO")
+                met_pago = st.selectbox("Metodo de pago:", ["CONTADO", "TRANSFERENCIA","CREDITO"])
 
                 col_btn1, col_btn2 = st.columns(2)
                 confirmar = col_btn1.button("✅ Procesar Venta", type="primary")
@@ -346,6 +346,19 @@ if __name__ == "__main__":
 
                 # --- 3. LÓGICA DE GUARDADO MÚLTIPLE ---
                 if confirmar:
+                    # 1. Recuperar la información completa del cliente seleccionado
+                    cliente_info = diccionario_clientes.get(nom_cliente)
+                    
+                    # 2. VALIDACIÓN DE CRÉDITO
+                    if met_pago == 'CREDITO':
+                        # Verificamos si el campo 'credito' es False o no existe
+                        tiene_credito = cliente_info.get("credito", False)
+                        
+                        if not tiene_credito:
+                            st.error(f"🚫 El cliente **{nom_cliente}** no tiene autorizada la línea de crédito. Cambia el método de pago o selecciona otro cliente.")
+                            st.stop() # Detiene la ejecución aquí y no guarda nada en la DB
+                        else:
+                            st.success("✅ Crédito verificado para este cliente.")
                     # Generar ID único de 10 dígitos al azar
                     id_venta_generado = str(random.randint(1000000000, 9999999999))
                     fecha_actual = datetime.now().isoformat()
@@ -367,7 +380,8 @@ if __name__ == "__main__":
                                 "nombreComprador": nom_cliente,
                                 "otros": met_pago,
                                 "plataforma": medio,
-                                "usuario": st.session_state.usuario_nombre
+                                "usuario": st.session_state.usuario_nombre,
+                                "condicion_pago": met_pago
                             }
 
                             # Enviamos uno por uno a la base de datos
@@ -377,16 +391,22 @@ if __name__ == "__main__":
                                 st.error(f"Fallo al guardar: {item['sku']}") 
 
                             # Enviamos a tabla cotizaciones que fue vendida
-                            codigo_cot = cotizacion_seleccionada.split("ID: ")[-1].split(" -")[0].strip()
-                            res2 = requests.post(f'{API_BASE_URL}/zeutica/cotizaciones/vendido', headers=toks, json={"vendido": 1, "codigo_cotizacion": codigo_cot})                           
-                            if res2 == 200:
-                                st.info(f'La cotizacion {codigo_cot} ha sido vendida con exito!')
+                            if "select_cotizacion" in st.session_state and st.session_state.select_cotizacion:
+                                try:
+                                    nombre_cot = st.session_state.select_cotizacion
+                                    codigo_cot = nombre_cot.split("ID: ")[-1].split(" -")[0].strip()
+                                    res2 = requests.post(f'{API_BASE_URL}/zeutica/cotizaciones/vendido', headers=toks, json={"vendido": 1, "codigo_cotizacion": codigo_cot})                           
+                                    if res2 == 200:
+                                        st.info(f'La cotizacion {codigo_cot} ha sido vendida con exito!')
+                                except Exception as e:
+                                    # Si falla el parseo o la API, que no detenga el éxito de la venta general
+                                    st.warning(f"No se pudo actualizar el estado de la cotización: {e}")
 
                     if errores == 0:
                         st.balloons()
                         st.success(f"✅ Venta {id_venta_generado} registrada con éxito.", icon='🎉')
                         st.session_state.carrito_ventas = [] # Limpiamos memoria
-                        requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
+                        #requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
                         import time
                         time.sleep(2)
                         st.rerun()

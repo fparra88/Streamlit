@@ -1,0 +1,27 @@
+[theme]
+# --- Identidad Visual ---
+primaryColor = "#007BFF"          # Color para botones, barras y resaltados
+backgroundColor = "#0E1117"       # Fondo principal (Oscuro profundo)
+secondaryBackgroundColor = "#1E232E" # Fondo de sidebar y widgets
+textColor = "#E0E0E0"             # Texto principal
+font = "sans serif"               # Fuente base (puedes usar URLs de Google Fonts)
+
+# --- Tipografía Avanzada (Novedad 2026) ---
+baseFontSize = 16
+headingFontSizes = ["32px", "24px", "20px", "16px", "14px", "12px"]
+codeFont = "monospace"
+
+[client]
+# Mejora la experiencia del usuario final
+showErrorDetails = false          # No mostrar rastreos de error feos al usuario
+toolbarMode = "minimal"           # Esconde el menú de "Made with Streamlit"
+showSidebarNavigation = true      # Si usas multipágina nativo
+
+[browser]
+# Optimización de carga
+gatherUsageStats = false          # Privacidad y ligera mejora de carga
+
+[server]
+# Configuración de rendimiento
+runOnSave = true                  # Auto-recarga al editar el código
+enableCORS = false                # Evita problemas de bloqueo en local/dev
