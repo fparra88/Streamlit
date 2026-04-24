@@ -248,69 +248,83 @@ else:
     # ========================================================================
     # 8. REGISTRAR FACTURA COMPLETA
     # ========================================================================
-    if st.button("✅ Registrar Factura", use_container_width=True, type="primary"):
-        errores_fac = []
-        if not num_factura.strip():
-            errores_fac.append("Ingresa el número de factura.")
-        if not proveedor.strip():
-            errores_fac.append("Ingresa el nombre del proveedor.")
-
-        if errores_fac:
-            for e in errores_fac:
-                st.error(f"❌ {e}")
-        else:
-            usuario = st.session_state.get("usuario_nombre", "usuario")
-            errores_api = []
-
-            # La API espera una lista; construimos todos los ítems de una vez
-            payload_compras = [
-                {
-                    "sku": item["sku"],
-                    "nombre": item["nombre"],
-                    "stock_bodega": item["qty"],
-                    "costo_total": item["costo_unit"],
+    if not st.session_state.get("confirm_factura"):
+        if st.button("✅ Registrar Factura", use_container_width=True, type="primary"):
+            errores_fac = []
+            if not num_factura.strip():
+                errores_fac.append("Ingresa el número de factura.")
+            if not proveedor.strip():
+                errores_fac.append("Ingresa el nombre del proveedor.")
+            if errores_fac:
+                for e in errores_fac:
+                    st.error(f"❌ {e}")
+            else:
+                st.session_state.confirm_factura = {
                     "num_factura": num_factura.strip(),
                     "proveedor": proveedor.strip(),
-                    "descuento_pct": item["descuento_pct"],
-                    "iva_pct": iva_pct,
-                    "subtotal": item["subtotal"],
-                    "usuario": usuario,
+                    "total": total_final,
+                    "n_items": len(st.session_state.carrito),
                 }
-                for item in st.session_state.carrito
-            ]
-
-            try:
-                with st.spinner("Registrando factura..."):
-                    resp = requests.post(
-                        f"{API_BASE_URL}/zeutica/compras",
-                        headers=toks, json=payload_compras, timeout=10
-                    )
-                if resp.status_code not in [200, 201]:
-                    errores_api.append(f"{resp.status_code} - {resp.text}")
-            except Exception as e:
-                errores_api.append(str(e))
-
-            # Actualizar costo promedio por ítem (independiente del resultado principal)
-            for item in st.session_state.carrito:
+                st.rerun()
+    else:
+        cf = st.session_state.confirm_factura
+        st.warning(
+            f"⚠️ ¿Confirmas registrar la factura **{cf['num_factura']}** de "
+            f"**{cf['proveedor']}** con **{cf['n_items']} ítems** por **${cf['total']:,.2f}**?"
+        )
+        col_ok, col_cancel = st.columns(2)
+        with col_ok:
+            if st.button("✅ Sí, registrar", type="primary", use_container_width=True, key="btn_ok_factura"):
+                usuario = st.session_state.get("usuario_nombre", "usuario")
+                errores_api = []
+                payload_compras = [
+                    {
+                        "sku": item["sku"],
+                        "nombre": item["nombre"],
+                        "stock_bodega": item["qty"],
+                        "costo_total": item["costo_unit"],
+                        "num_factura": cf["num_factura"],
+                        "proveedor": cf["proveedor"],
+                        "descuento_pct": item["descuento_pct"],
+                        "iva_pct": iva_pct,
+                        "subtotal": item["subtotal"],
+                        "usuario": usuario,
+                    }
+                    for item in st.session_state.carrito
+                ]
                 try:
-                    requests.post(
-                        f"{API_BASE_URL}/zeutica/costoPromedio",
-                        json={"sku": item["sku"], "costo_prom": item["costo_prom"]},
-                        headers=toks, timeout=5
-                    )
-                except Exception:
-                    pass  # No bloqueamos si falla el promedio
-
-            if errores_api:
-                for e in errores_api:
-                    st.error(f"❌ Error al registrar factura: {e}")
-            else:
-                st.balloons()
-                st.success(f"🎉 Factura **{num_factura}** registrada exitosamente — {len(st.session_state.carrito)} ítems, total ${total_final:,.2f}")
-                # Limpiar carrito tras registro exitoso
-                st.session_state.carrito = []
-                import time
-                time.sleep(2)
+                    with st.spinner("Registrando factura..."):
+                        resp = requests.post(
+                            f"{API_BASE_URL}/zeutica/compras",
+                            headers=toks, json=payload_compras, timeout=10
+                        )
+                    if resp.status_code not in [200, 201]:
+                        errores_api.append(f"{resp.status_code} - {resp.text}")
+                except Exception as e:
+                    errores_api.append(str(e))
+                for item in st.session_state.carrito:
+                    try:
+                        requests.post(
+                            f"{API_BASE_URL}/zeutica/costoPromedio",
+                            json={"sku": item["sku"], "costo_prom": item["costo_prom"]},
+                            headers=toks, timeout=5
+                        )
+                    except Exception:
+                        pass
+                st.session_state.confirm_factura = None
+                if errores_api:
+                    for e in errores_api:
+                        st.error(f"❌ Error al registrar factura: {e}")
+                else:
+                    st.balloons()
+                    st.success(f"🎉 Factura **{cf['num_factura']}** registrada exitosamente — {cf['n_items']} ítems, total ${cf['total']:,.2f}")
+                    st.session_state.carrito = []
+                    import time
+                    time.sleep(2)
+                    st.rerun()
+        with col_cancel:
+            if st.button("❌ Cancelar", use_container_width=True, key="btn_cancel_factura"):
+                st.session_state.confirm_factura = None
                 st.rerun()
 
 

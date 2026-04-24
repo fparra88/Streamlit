@@ -55,23 +55,42 @@ with st.form("Registro de Ventas"):
     envio_datos = st.form_submit_button("Registra el gasto")
 
 if envio_datos:
-    payload = {
-        "usuario_registro": st.session_state.get("usuario_nombre", "usuario"),
+    st.session_state.gasto_pendiente = {
         "descripcion": descripcion,
         "costo": costo,
-        "cantidad": cantidad
+        "cantidad": cantidad,
     }
-    try:
-        with st.spinner("Enviando datos al servidor en AWS..."):
-            res = requests.post(f"{API_BASE_URL}/zeutica/gastos", headers=toks, json=payload)
-            
-        if res.status_code == 200:
-            st.success("✅ Registro aceptado")
-        else:
-            # AHORA SÍ VERÁS POR QUÉ FALLA SI NO ES 200
-            st.error(f"❌ Error del servidor: {res.status_code} - {res.text}") 
-    except Exception as e:
-        st.error(f"❌ Error de conexion: {e}")
+
+if st.session_state.get("gasto_pendiente"):
+    p = st.session_state.gasto_pendiente
+    st.warning(
+        f"⚠️ ¿Confirmas registrar el gasto **{p['descripcion']}** por **${p['costo']}**?"
+    )
+    col_ok, col_cancel = st.columns(2)
+    with col_ok:
+        if st.button("✅ Sí, registrar", type="primary", use_container_width=True, key="btn_ok_gasto"):
+            payload = {
+                "usuario_registro": st.session_state.get("usuario_nombre", "usuario"),
+                "descripcion": p["descripcion"],
+                "costo": p["costo"],
+                "cantidad": p["cantidad"],
+            }
+            try:
+                with st.spinner("Enviando datos al servidor en AWS..."):
+                    res = requests.post(f"{API_BASE_URL}/zeutica/gastos", headers=toks, json=payload)
+                if res.status_code == 200:
+                    st.session_state.gasto_pendiente = None
+                    st.success("✅ Registro aceptado")
+                else:
+                    st.error(f"❌ Error del servidor: {res.status_code} - {res.text}")
+                    st.session_state.gasto_pendiente = None
+            except Exception as e:
+                st.error(f"❌ Error de conexion: {e}")
+                st.session_state.gasto_pendiente = None
+    with col_cancel:
+        if st.button("❌ Cancelar", use_container_width=True, key="btn_cancel_gasto"):
+            st.session_state.gasto_pendiente = None
+            st.rerun()
 
 st.divider()
 st.subheader("Ingresa SKU como gasto OPERATIVO.")
@@ -91,41 +110,59 @@ with st.form("Registro de SKU"):
         fecha_actual = datetime.now().isoformat()
 
     # Botón dentro del form
-    if st.form_submit_button("Ingresar", use_container_width=True, type="primary"):
-        
-        # Validación extra: Asegurarnos de que seleccionó algo
-        if seleccion and sku_input:
-            # CORRECCIÓN VITAL: Extraemos el diccionario real del producto
-            producto_data = sku_input[seleccion]
-            
+    sku_submitted = st.form_submit_button("Ingresar", use_container_width=True, type="primary")
+
+if sku_submitted:
+    if seleccion and sku_input:
+        producto_data = sku_input[seleccion]
+        st.session_state.sku_gasto_pendiente = {
+            "sku": producto_data.get('sku', ''),
+            "nombre": producto_data.get('nombre', 'Sin nombre'),
+            "cantidad": cantidad,
+            "fecha_actual": fecha_actual,
+        }
+    else:
+        st.warning("⚠️ No se seleccionó un producto válido.")
+
+if st.session_state.get("sku_gasto_pendiente"):
+    p = st.session_state.sku_gasto_pendiente
+    st.warning(
+        f"⚠️ ¿Confirmas registrar **{p['cantidad']} uds.** de "
+        f"**{p['nombre']}** como gasto operativo de bodega?"
+    )
+    col_ok2, col_cancel2 = st.columns(2)
+    with col_ok2:
+        if st.button("✅ Sí, registrar", type="primary", use_container_width=True, key="btn_ok_sku_gasto"):
             payload = {
                 "id_venta": 0,
-                "sku": producto_data.get('sku', ''), # Sacamos el SKU real
-                "stock_bodega": cantidad,
+                "sku": p["sku"],
+                "stock_bodega": p["cantidad"],
                 "precio": 0.00,
-                "producto": producto_data.get('nombre', 'Sin nombre'), # Sacamos el nombre real
-                "fecha": fecha_actual,
+                "producto": p["nombre"],
+                "fecha": p["fecha_actual"],
                 "nombreComprador": "USO DE BODEGA",
                 "otros": "ESTE ARTICULO FUE USADO EN ALMACEN",
                 "plataforma": "BODEGA",
-                "usuario": st.session_state.usuario_nombre
+                "usuario": st.session_state.usuario_nombre,
             }
-            
-            # CORRECCIÓN DE INDENTACIÓN: El try ahora está DENTRO del botón
             try:
                 res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", headers=toks, json=payload)
-                
                 if res.status_code == 200:
+                    st.session_state.sku_gasto_pendiente = None
                     st.success("✅ Gasto registrado correctamente")
-                    st.balloons()                    
+                    st.balloons()
                     time.sleep(2)
                     st.rerun()
                 else:
                     st.error(f"❌ Fallo al guardar: Código {res.status_code} - {res.text}")
+                    st.session_state.sku_gasto_pendiente = None
             except Exception as e:
                 st.error(f"❌ Excepción al guardar: {e}")
-        else:
-            st.warning("⚠️ No se seleccionó un producto válido.")
+                st.session_state.sku_gasto_pendiente = None
+    with col_cancel2:
+        if st.button("❌ Cancelar", use_container_width=True, key="btn_cancel_sku_gasto"):
+            st.session_state.sku_gasto_pendiente = None
+            st.rerun()
 
 # --- SECCIÓN DE CONSULTA ---
 st.divider()

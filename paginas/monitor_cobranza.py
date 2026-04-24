@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 from typing import Optional
-import math
+import math, time
 
 API_BASE_URL = st.session_state.ip
 
@@ -194,36 +194,62 @@ def renderPanelAbono():
             if isinstance(id_ventas, float):
                 id_ventas = int(id_ventas)
 
-            payload = {
+            # Guardar datos del abono pendiente de confirmación del usuario
+            st.session_state.abono_pendiente = {
                 "id_ventas": id_ventas,
                 "saldo_abonado": float(saldo_abonado),
+                "nombre_cliente": fila[col_nombre] if col_nombre else f"Venta #{id_ventas}",
             }
 
-            try:
-                with st.spinner("Registrando abono..."):
-                    res = requests.post(
-                        f"{API_BASE_URL}/zeutica/abonos",
-                        headers=toks,
-                        json=payload,
-                        timeout=10,
-                    )
+    # ── Confirmación fuera del form para permitir botones independientes ──────
+    if st.session_state.get("abono_pendiente"):
+        pendiente = st.session_state.abono_pendiente
+        st.warning(
+            f"⚠️ ¿Confirmas registrar un abono de **${pendiente['saldo_abonado']:,.2f}** "
+            f"para **{pendiente['nombre_cliente']}**?"
+        )
+        col_ok, col_cancel = st.columns(2)
+        with col_ok:
+            if st.button("✅ Sí, registrar", type="primary", use_container_width=True):
+                payload = {
+                    "id_ventas": pendiente["id_ventas"],
+                    "saldo_abonado": pendiente["saldo_abonado"],
+                }
+                try:
+                    with st.spinner("Registrando abono..."):
+                        res = requests.post(
+                            f"{API_BASE_URL}/zeutica/abonos",
+                            headers=toks,
+                            json=payload,
+                            timeout=10,
+                        )
 
-                if res.status_code == 200:
-                    nombre_cliente = fila[col_nombre] if col_nombre else f"Venta #{id_ventas}"
-                    st.success(
-                        f"✅ Abono de **${saldo_abonado:,.2f}** registrado para **{nombre_cliente}**."
-                    )
-                    st.balloons()
-                    # Fuerza recarga de datos para reflejar el nuevo saldo
-                    st.session_state.creditos_df = None
-                    st.rerun()
-                else:
-                    st.error(f"❌ Error {res.status_code}: {res.text}")
+                    if res.status_code == 200:
+                        st.success(
+                            f"✅ Abono de **${pendiente['saldo_abonado']:,.2f}** registrado para **{pendiente['nombre_cliente']}**."
+                        )
+                        st.success(f"El abono fue realizado {res.text}")
+                        st.balloons()
+                        st.session_state.abono_pendiente = None
+                        # Fuerza recarga de datos para reflejar el nuevo saldo
+                        st.session_state.creditos_df = None
+                        time.sleep(6)
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Error {res.status_code}: {res.text}")
+                        st.session_state.abono_pendiente = None
 
-            except requests.exceptions.ConnectionError:
-                st.error("🔌 No se pudo conectar con la API.")
-            except Exception as e:
-                st.error(f"Error inesperado: {e}")
+                except requests.exceptions.ConnectionError:
+                    st.error("🔌 No se pudo conectar con la API.")
+                    st.session_state.abono_pendiente = None
+                except Exception as e:
+                    st.error(f"Error inesperado: {e}")
+                    st.session_state.abono_pendiente = None
+
+        with col_cancel:
+            if st.button("❌ Cancelar", use_container_width=True):
+                st.session_state.abono_pendiente = None
+                st.rerun()
 
 
 # ─── LAYOUT PRINCIPAL ─────────────────────────────────────────────────────────

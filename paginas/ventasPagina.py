@@ -337,15 +337,39 @@ if __name__ == "__main__":
                 met_pago = st.selectbox("Metodo de pago:", ["CONTADO", "TRANSFERENCIA","CREDITO"])
 
                 col_btn1, col_btn2 = st.columns(2)
-                confirmar = col_btn1.button("✅ Procesar Venta", type="primary")
                 limpiar = col_btn2.button("🗑️ Vaciar Carrito")
 
                 if limpiar:
                     st.session_state.carrito_ventas = []
                     st.rerun()
 
+                confirmar_ok = False
+                if not st.session_state.get("confirm_venta"):
+                    if col_btn1.button("✅ Procesar Venta", type="primary"):
+                        st.session_state.confirm_venta = {
+                            "nom_cliente": nom_cliente,
+                            "medio": medio,
+                            "met_pago": met_pago,
+                            "total": total_con_descuento,
+                            "descuento_pct": descuento_pct,
+                        }
+                        st.rerun()
+                else:
+                    cv = st.session_state.confirm_venta
+                    st.warning(
+                        f"⚠️ ¿Confirmas procesar la venta para **{cv['nom_cliente']}** "
+                        f"por **${cv['total']:,.2f}** vía **{cv['met_pago']}**?"
+                    )
+                    col_ok, col_cancel = st.columns(2)
+                    with col_ok:
+                        confirmar_ok = st.button("✅ Sí, procesar", type="primary", use_container_width=True)
+                    with col_cancel:
+                        if st.button("❌ Cancelar", use_container_width=True):
+                            st.session_state.confirm_venta = None
+                            st.rerun()
+
                 # --- 3. LÓGICA DE GUARDADO MÚLTIPLE ---
-                if confirmar:
+                if confirmar_ok:
                     # 1. Recuperar la información completa del cliente seleccionado
                     cliente_info = diccionario_clientes.get(nom_cliente)
                     
@@ -402,11 +426,12 @@ if __name__ == "__main__":
                                     # Si falla el parseo o la API, que no detenga el éxito de la venta general
                                     st.warning(f"No se pudo actualizar el estado de la cotización: {e}")
 
+                    st.session_state.confirm_venta = None
                     if errores == 0:
                         st.balloons()
                         st.success(f"✅ Venta {id_venta_generado} registrada con éxito.", icon='🎉')
-                        st.session_state.carrito_ventas = [] # Limpiamos memoria
-                        #requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
+                        st.session_state.carrito_ventas = []
+                        requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
                         import time
                         time.sleep(2)
                         st.rerun()

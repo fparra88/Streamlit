@@ -113,38 +113,60 @@ def mostrar_traspasos():
             
             # Opciones de ejecución
             c1, c2 = st.columns(2)
-            
-            if c1.button("✅ Confirmar Traspaso", type="primary", use_container_width=True):
-                # Para CLEAN agregamos stock_clean (mismo valor que stock_bodega) que requiere el backend
-                movimientos = [
-                    {**item, "stock_clean": int(item["stock_bodega"])}
-                    if destino == "CLEAN" else item
-                    for item in st.session_state.lista_traspasos
-                ]
-                payload = {
-                    "usuario": st.session_state.get("usuario_nombre", "Error"),
-                    "movimientos": movimientos
-                }
-                
-                try:
-                    with st.spinner("Ejecutando traspaso en base de datos..."):
-                        res = requests.post(URL_DESTINO[destino], headers=toks, json=payload)
-                    
-                        if res.status_code == 200:
-                            st.balloons()
-                            st.success(f"✅ Traspaso a **{destino}** completado con éxito.{res.text}")
-                            st.session_state.lista_traspasos = [] # Limpiamos memoria
-                            import time
-                            time.sleep(2)
-                            st.rerun()
-                        else:
-                            st.error(f"❌ Error en el servidor: {res.text}")
-                except Exception as e:
-                    st.error(f"⚠️ Falla de conexión: {e}")
-            
+
             if c2.button("🗑️ Limpiar Lista", use_container_width=True):
                 st.session_state.lista_traspasos = []
+                st.session_state.confirm_traspaso = False
                 st.rerun()
+
+            if not st.session_state.get("confirm_traspaso"):
+                if c1.button("✅ Confirmar Traspaso", type="primary", use_container_width=True):
+                    total_uds = sum(int(i["stock_bodega"]) for i in st.session_state.lista_traspasos)
+                    st.session_state.confirm_traspaso = {
+                        "destino": destino,
+                        "n_items": len(st.session_state.lista_traspasos),
+                        "total_uds": total_uds,
+                    }
+                    st.rerun()
+            else:
+                ct = st.session_state.confirm_traspaso
+                st.warning(
+                    f"⚠️ ¿Confirmas traspasar **{ct['n_items']} producto(s)** "
+                    f"({ct['total_uds']} uds. en total) al almacén **{ct['destino']}**?"
+                )
+                col_ok, col_cancel = st.columns(2)
+                with col_ok:
+                    if st.button("✅ Sí, traspasar", type="primary", use_container_width=True):
+                        movimientos = [
+                            {**item, "stock_clean": int(item["stock_bodega"])}
+                            if ct["destino"] == "CLEAN" else item
+                            for item in st.session_state.lista_traspasos
+                        ]
+                        payload = {
+                            "usuario": st.session_state.get("usuario_nombre", "Error"),
+                            "movimientos": movimientos
+                        }
+                        try:
+                            with st.spinner("Ejecutando traspaso en base de datos..."):
+                                res = requests.post(URL_DESTINO[ct["destino"]], headers=toks, json=payload)
+                            if res.status_code == 200:
+                                st.session_state.confirm_traspaso = False
+                                st.balloons()
+                                st.success(f"✅ Traspaso a **{ct['destino']}** completado con éxito.{res.text}")
+                                st.session_state.lista_traspasos = []
+                                import time
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Error en el servidor: {res.text}")
+                                st.session_state.confirm_traspaso = False
+                        except Exception as e:
+                            st.error(f"⚠️ Falla de conexión: {e}")
+                            st.session_state.confirm_traspaso = False
+                with col_cancel:
+                    if st.button("❌ Cancelar", use_container_width=True):
+                        st.session_state.confirm_traspaso = False
+                        st.rerun()
 
 # Si llamas este archivo directamente o a través del exec()
 mostrar_traspasos()

@@ -288,61 +288,77 @@ def app():
         if submitted:
             if not nombre or not rfc:
                 st.warning("⚠️ Nombre y RFC son campos obligatorios.")
-                return
-
-            payload = {
-                "nombre": nombre.strip(),
-                "email": email.strip() if email else "",
-                "empresa": empresa.strip() if empresa else "",
-                "contacto": contacto.strip() if contacto else "",
-                "telefono": telefono.strip() if telefono else "",
-                "direccion": direccion.strip() if direccion else "",
-                "rfc": rfc.strip(),
-                "cp": cp.strip() if cp else "",
-                "regimen": regimen.strip() if regimen else "",
-                "usocfdi": usocfdi.strip() if usocfdi else "",
-                "frecuencia": frecuencia.strip() if frecuencia else "",
-                "credito": bool(credito_cliente),
-                "usuario": st.session_state.usuario_nombre.strip()
-                if st.session_state.usuario_nombre
-                else "",
-            }
-
-            if credito_cliente and monto_credito is not None:
-                payload["monto_credito"] = int(monto_credito)
-
-            if modo == "edicion":
-                cliente_id = cliente_edit.get("id")
-                if isinstance(cliente_id, float):
-                    cliente_id = int(cliente_id)
-                payload["id"] = cliente_id
-                endpoint = f"{API_BASE_URL}/zeutica/editcliente"
             else:
-                endpoint = f"{API_BASE_URL}/zeutica/clientenuevo"
-
-            try:
-                with st.spinner("Guardando..."):
-                    res = requests.post(endpoint, headers=toks, json=payload)
-
-                if res.status_code == 200:
-                    st.balloons()
-                    if modo == "edicion":
-                        st.success("✅ Cliente actualizado correctamente.")
-                        # Limpia estado de edición y fuerza recarga de lista
-                        st.session_state.cliente_edit = None
-                        st.session_state.clientes_data = None
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        data_resp = res.json()
-                        st.success(f"✅ ¡Cliente registrado! ID asignado: {data_resp.get('id')}")
+                payload = {
+                    "nombre": nombre.strip(),
+                    "email": email.strip() if email else "",
+                    "empresa": empresa.strip() if empresa else "",
+                    "contacto": contacto.strip() if contacto else "",
+                    "telefono": telefono.strip() if telefono else "",
+                    "direccion": direccion.strip() if direccion else "",
+                    "rfc": rfc.strip(),
+                    "cp": cp.strip() if cp else "",
+                    "regimen": regimen.strip() if regimen else "",
+                    "usocfdi": usocfdi.strip() if usocfdi else "",
+                    "frecuencia": frecuencia.strip() if frecuencia else "",
+                    "credito": bool(credito_cliente),
+                    "usuario": st.session_state.usuario_nombre.strip()
+                    if st.session_state.usuario_nombre
+                    else "",
+                }
+                if credito_cliente and monto_credito is not None:
+                    payload["monto_credito"] = int(monto_credito)
+                if modo == "edicion":
+                    cliente_id = cliente_edit.get("id")
+                    if isinstance(cliente_id, float):
+                        cliente_id = int(cliente_id)
+                    payload["id"] = cliente_id
+                    endpoint = f"{API_BASE_URL}/zeutica/editcliente"
                 else:
-                    st.error(f"❌ Error {res.status_code}: {res.text}")
+                    endpoint = f"{API_BASE_URL}/zeutica/clientenuevo"
+                st.session_state.cliente_pendiente = {
+                    "payload": payload,
+                    "endpoint": endpoint,
+                    "modo": modo,
+                    "nombre": nombre.strip(),
+                }
 
-            except requests.exceptions.ConnectionError:
-                st.error("🔌 No se pudo conectar con la API. Verifica que el servidor esté activo.")
-            except Exception as e:
-                st.error(f"Ocurrió un error inesperado: {e}")
+    if st.session_state.get("cliente_pendiente"):
+        cp_data = st.session_state.cliente_pendiente
+        accion = "actualizar" if cp_data["modo"] == "edicion" else "registrar"
+        st.warning(
+            f"⚠️ ¿Confirmas {accion} al cliente **{cp_data['nombre']}**?"
+        )
+        col_ok, col_cancel = st.columns(2)
+        with col_ok:
+            if st.button("✅ Sí, confirmar", type="primary", use_container_width=True):
+                try:
+                    with st.spinner("Guardando..."):
+                        res = requests.post(cp_data["endpoint"], headers=toks, json=cp_data["payload"])
+                    st.session_state.cliente_pendiente = None
+                    if res.status_code == 200:
+                        st.balloons()
+                        if cp_data["modo"] == "edicion":
+                            st.success("✅ Cliente actualizado correctamente.")
+                            st.session_state.cliente_edit = None
+                            st.session_state.clientes_data = None
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            data_resp = res.json()
+                            st.success(f"✅ ¡Cliente registrado! ID asignado: {data_resp.get('id')}")
+                    else:
+                        st.error(f"❌ Error {res.status_code}: {res.text}")
+                except requests.exceptions.ConnectionError:
+                    st.error("🔌 No se pudo conectar con la API. Verifica que el servidor esté activo.")
+                    st.session_state.cliente_pendiente = None
+                except Exception as e:
+                    st.error(f"Ocurrió un error inesperado: {e}")
+                    st.session_state.cliente_pendiente = None
+        with col_cancel:
+            if st.button("❌ Cancelar", use_container_width=True):
+                st.session_state.cliente_pendiente = None
+                st.rerun()
 
 
 if __name__ == "__main__":

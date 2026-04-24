@@ -114,35 +114,51 @@ def _modal_firma(pid, norden_v):
         key=f"canvas_{pid}",
     )
 
-    if st.button("📤 Enviar Firma", type="primary", use_container_width=True):
-        if canvas_result.image_data is None:
-            st.warning("El lienzo está vacío. Dibuja la firma antes de enviar.")
-            return
-
-        # Convertir numpy array → PNG → base64
-        img = Image.fromarray(canvas_result.image_data.astype("uint8"), mode="RGBA")
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-        payload = {
-            "numero_orden": norden_v,
-            "firma_base64": img_b64,
-            "usuario": st.session_state.get("usuario_nombre", "sistema"),
-            "fecha_firma": datetime.now().isoformat(),
-            "firma_cleanest": "Se firmo una orden de cleanest"
-        }
-
-        try:
-            res = requests.post(f"{API_BASE_URL}/zeutica/efirma", headers=toks, json=payload)
-            if res.status_code in (200, 201):
-                st.success("✅ Firma enviada correctamente.")
-                requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload) # Notificacion de telegram
+    firma_key = f"confirm_firma_cleanest_{pid}"
+    if not st.session_state.get(firma_key):
+        if st.button("📤 Enviar Firma", type="primary", use_container_width=True):
+            if canvas_result.image_data is None:
+                st.warning("El lienzo está vacío. Dibuja la firma antes de enviar.")
+                return
+            st.session_state[firma_key] = True
+            st.rerun()
+    else:
+        st.warning(f"⚠️ ¿Confirmas enviar la firma para la orden **{norden_v}**?")
+        col_ok, col_cancel = st.columns(2)
+        with col_ok:
+            if st.button("✅ Sí, enviar", type="primary", use_container_width=True, key=f"ok_firma_c_{pid}"):
+                if canvas_result.image_data is None:
+                    st.warning("El lienzo está vacío. Dibuja la firma antes de enviar.")
+                    st.session_state[firma_key] = False
+                    return
+                img = Image.fromarray(canvas_result.image_data.astype("uint8"), mode="RGBA")
+                buffer = io.BytesIO()
+                img.save(buffer, format="PNG")
+                img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                payload = {
+                    "numero_orden": norden_v,
+                    "firma_base64": img_b64,
+                    "usuario": st.session_state.get("usuario_nombre", "sistema"),
+                    "fecha_firma": datetime.now().isoformat(),
+                    "firma_cleanest": "Se firmo una orden de cleanest"
+                }
+                try:
+                    res = requests.post(f"{API_BASE_URL}/zeutica/efirma", headers=toks, json=payload)
+                    if res.status_code in (200, 201):
+                        st.session_state[firma_key] = False
+                        st.success("✅ Firma enviada correctamente.")
+                        requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0", json=payload)
+                        st.rerun()
+                    else:
+                        st.error(f"Error al enviar firma: {res.status_code} — {res.text}")
+                        st.session_state[firma_key] = False
+                except Exception as e:
+                    st.error(f"Error de conexión: {e}")
+                    st.session_state[firma_key] = False
+        with col_cancel:
+            if st.button("❌ Cancelar", use_container_width=True, key=f"cancel_firma_c_{pid}"):
+                st.session_state[firma_key] = False
                 st.rerun()
-            else:
-                st.error(f"Error al enviar firma: {res.status_code} — {res.text}")
-        except Exception as e:
-            st.error(f"Error de conexión: {e}")
 
 
 def firma_digital(pid, norden_v):
@@ -185,28 +201,49 @@ def cleanest():
                 else:
                     producto_data = sku_input.get(seleccion, {})
                     sku_val = producto_data.get("sku", seleccion)
-
-                    payload = {
-                        "numero_orden": norden,
+                    st.session_state.orden_pendiente = {
+                        "norden": norden,
                         "sku": sku_val,
                         "cantidad": int(cantidad),
                         "fecha_promesa": fecha_promesa.isoformat(),
+                    }
+
+        if st.session_state.get("orden_pendiente"):
+            op = st.session_state.orden_pendiente
+            st.warning(
+                f"⚠️ ¿Confirmas registrar la orden **{op['norden']}** — "
+                f"SKU **{op['sku']}** × {op['cantidad']} uds.?"
+            )
+            col_ok, col_cancel = st.columns(2)
+            with col_ok:
+                if st.button("✅ Sí, registrar", type="primary", use_container_width=True, key="btn_ok_orden"):
+                    payload = {
+                        "numero_orden": op["norden"],
+                        "sku": op["sku"],
+                        "cantidad": op["cantidad"],
+                        "fecha_promesa": op["fecha_promesa"],
                         "status": "Pendiente",
                         "envio1": 0,
                         "envio2": 0,
-                        "envio3": 0
+                        "envio3": 0,
                     }
-
                     try:
                         res = requests.post(f"{API_BASE_URL}/zeutica/ordenes", headers=toks, json=payload)
                         if res.status_code in (200, 201):
-                            st.success(f"✅ Orden **{norden}** registrada correctamente.")
-                            requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
+                            st.session_state.orden_pendiente = None
+                            st.success(f"✅ Orden **{op['norden']}** registrada correctamente.")
+                            requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0", json=payload)
                             st.balloons()
                         else:
                             st.error(f"Error al registrar: {res.status_code} — {res.text}")
+                            st.session_state.orden_pendiente = None
                     except Exception as e:
                         st.error(f"Error de conexión: {e}")
+                        st.session_state.orden_pendiente = None
+            with col_cancel:
+                if st.button("❌ Cancelar", use_container_width=True, key="btn_cancel_orden"):
+                    st.session_state.orden_pendiente = None
+                    st.rerun()
 
     # ─────────────────────────────────────────
     # TAB 2: TRACKING
@@ -304,21 +341,35 @@ def cleanest():
                         st.progress(progreso, text=f"Enviado: {total_nuevo} / {cantidad_v} pzs ({progreso*100:.0f}%)")
 
                     # Guardar
-                    if st.button("💾 Guardar cambios", key=f"save_{pid}", type="primary"):
-                        # Si los envíos completan la cantidad, forzar Entregado sin importar el selectbox
-                        final_status = "Entregado" if total_nuevo >= cantidad_v else nuevo_status
-
-                        update_payload = {
-                            "envio1": new_e1,
-                            "envio2": new_e2,
-                            "envio3": new_e3,
-                            "status": final_status
-                        }
-                        if actualizar_pedido(pid, update_payload):
-                            st.success(f"✅ Orden {norden_v} actualizada — Status: **{final_status}**")
+                    confirm_key = f"confirm_save_{pid}"
+                    if not st.session_state.get(confirm_key):
+                        if st.button("💾 Guardar cambios", key=f"save_{pid}", type="primary"):
+                            st.session_state[confirm_key] = True
                             st.rerun()
-                        else:
-                            st.error("Error al actualizar. Verifica la conexión con el servidor.")
+                    else:
+                        final_status = "Entregado" if total_nuevo >= cantidad_v else nuevo_status
+                        st.warning(
+                            f"⚠️ ¿Confirmas actualizar la orden **{norden_v}** → Status: **{final_status}**?"
+                        )
+                        col_ok, col_cancel = st.columns(2)
+                        with col_ok:
+                            if st.button("✅ Sí, guardar", type="primary", use_container_width=True, key=f"ok_save_{pid}"):
+                                update_payload = {
+                                    "envio1": new_e1,
+                                    "envio2": new_e2,
+                                    "envio3": new_e3,
+                                    "status": final_status
+                                }
+                                st.session_state[confirm_key] = False
+                                if actualizar_pedido(pid, update_payload):
+                                    st.success(f"✅ Orden {norden_v} actualizada — Status: **{final_status}**")
+                                    st.rerun()
+                                else:
+                                    st.error("Error al actualizar. Verifica la conexión con el servidor.")
+                        with col_cancel:
+                            if st.button("❌ Cancelar", use_container_width=True, key=f"cancel_save_{pid}"):
+                                st.session_state[confirm_key] = False
+                                st.rerun()
 
                     # Visualización de la firma ya registrada
                     mostrar_firma(norden_v, uid=pid)

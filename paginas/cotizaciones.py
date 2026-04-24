@@ -386,13 +386,24 @@ if st.session_state.mostrar_formCotizacion:
                     monto_descuento=monto_descuento
                 )
                 pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8') # Generamos pdf en base64
-                if st.download_button(
+                if not st.session_state.get("confirm_coti_descarga"):
+                    if st.button("✅ Confirmar y preparar descarga", type="primary", use_container_width=True):
+                        st.session_state.confirm_coti_descarga = True
+                        st.rerun()
+                else:
+                    col_dl, col_cx = st.columns(2)
+                    with col_cx:
+                        if st.button("❌ Cancelar", use_container_width=True):
+                            st.session_state.confirm_coti_descarga = None
+                            st.rerun()
+
+                if st.session_state.get("confirm_coti_descarga") and st.download_button(
                         "📄 Descargar y Registrar Cotización",
                         data=pdf_bytes,
                         file_name=f"Cotizacion_{st.session_state.codigo_actual}_{seleccion_nombre}.pdf",
                         mime="application/pdf",
-                        type="primary",
-                        use_container_width=True
+                        use_container_width=True,
+                        key="dl_coti_confirmed",
                     ):
                         payload = {
                             "codigo_cotizacion": st.session_state.codigo_actual,
@@ -423,6 +434,7 @@ if st.session_state.mostrar_formCotizacion:
 
                         res = requests.post(f"{API_BASE_URL}/zeutica/cotizaciones/guardar", headers= toks, json=payload)
                         if res.status_code == 200:
+                            st.session_state.confirm_coti_descarga = None
                             st.balloons()
                             st.success(f"✅ Cotización {st.session_state.codigo_actual} guardada.")
                             st.session_state.items_cotizacion = []
@@ -464,40 +476,55 @@ def modal_firma(codigo_coti, idx_fila):
         key="canvas_firma_modal",
     )
 
-    if st.button("📤 Guardar Firma", type="primary", use_container_width=True):
-        if canvas_result.image_data is None:
-            st.warning("El lienzo está vacío. Dibuja la firma antes de guardar.")
-            return
-
-        # Convertir numpy array → PNG → base64
-        img = Image.fromarray(canvas_result.image_data.astype("uint8"), mode="RGBA")
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-        payload = {
-            "codigo_cotizacion": codigo_coti,
-            "firma_base64": img_b64,
-            "usuario": st.session_state.get("usuario_nombre", "sistema"),
-            "fecha_firma": datetime.now().isoformat(),
-        }
-
-        try:
-            res = requests.post(f"{API_BASE_URL}/zeutica/firma-ventas", headers=toks, json=payload)
-            if res.status_code in (200, 201):
-                # Persistir base64 en el DataFrame guardado en session_state
-                if "df_cotizaciones" in st.session_state:
-                    st.session_state.df_cotizaciones.at[idx_fila, "firma_base64"] = img_b64
-                st.balloons()
-                st.success("✅ Firma guardada correctamente.")
-                requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0",json=payload)
-                import time
-                time.sleep(2)
+    if not st.session_state.get("confirm_firma_coti"):
+        if st.button("📤 Guardar Firma", type="primary", use_container_width=True):
+            if canvas_result.image_data is None:
+                st.warning("El lienzo está vacío. Dibuja la firma antes de guardar.")
+                return
+            st.session_state.confirm_firma_coti = True
+            st.rerun()
+    else:
+        st.warning(f"⚠️ ¿Confirmas guardar la firma para la cotización **{codigo_coti}**?")
+        col_ok, col_cancel = st.columns(2)
+        with col_ok:
+            if st.button("✅ Sí, guardar", type="primary", use_container_width=True, key="btn_ok_firma_coti"):
+                if canvas_result.image_data is None:
+                    st.warning("El lienzo está vacío. Dibuja la firma antes de guardar.")
+                    st.session_state.confirm_firma_coti = False
+                    return
+                img = Image.fromarray(canvas_result.image_data.astype("uint8"), mode="RGBA")
+                buffer = io.BytesIO()
+                img.save(buffer, format="PNG")
+                img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                payload = {
+                    "codigo_cotizacion": codigo_coti,
+                    "firma_base64": img_b64,
+                    "usuario": st.session_state.get("usuario_nombre", "sistema"),
+                    "fecha_firma": datetime.now().isoformat(),
+                }
+                try:
+                    res = requests.post(f"{API_BASE_URL}/zeutica/firma-ventas", headers=toks, json=payload)
+                    if res.status_code in (200, 201):
+                        st.session_state.confirm_firma_coti = False
+                        # Persistir base64 en el DataFrame guardado en session_state
+                        if "df_cotizaciones" in st.session_state:
+                            st.session_state.df_cotizaciones.at[idx_fila, "firma_base64"] = img_b64
+                        st.balloons()
+                        st.success("✅ Firma guardada correctamente.")
+                        requests.post("https://n8n-n8n.i4mjht.easypanel.host/webhook/5a5caa1a-3ad5-44ff-9f47-d791f937f2d0", json=payload)
+                        import time
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        st.error(f"Error al enviar firma: {res.status_code} — {res.text}")
+                        st.session_state.confirm_firma_coti = False
+                except Exception as e:
+                    st.error(f"Error de conexión: {e}")
+                    st.session_state.confirm_firma_coti = False
+        with col_cancel:
+            if st.button("❌ Cancelar", use_container_width=True, key="btn_cancel_firma_coti"):
+                st.session_state.confirm_firma_coti = False
                 st.rerun()
-            else:
-                st.error(f"Error al enviar firma: {res.status_code} — {res.text}")
-        except Exception as e:
-            st.error(f"Error de conexión: {e}")
 
 # --- MODAL VISOR DE FIRMA ---
 @st.dialog("🔍 Visor de Firma Digital")
@@ -613,28 +640,41 @@ if st.session_state.mostrar_form:
                     #  Botón para enviar los datos a la base de datos
 
 
-                    if st.button("Guardar Relación de Facturas 💾", type="primary"):
-                        mask = df_editado[columnas_permitidas].notna().any(axis=1)
-                        modificados = df_editado[mask]
-    
-                        if not modificados.empty:
-                            modificados['fecha_pago'] = modificados['fecha_pago'].dt.strftime('%Y-%m-%d')
-                            modificados = modificados.where(pd.notnull(modificados), None)
-                            columnas_a_enviar = ["codigo_cotizacion"] + columnas_permitidas
-                            payload = modificados[columnas_a_enviar].to_dict(orient="records")
-                            res_update = requests.post(f"{API_BASE_URL}/zeutica/relacionFactura", headers= toks ,json=payload)
-        
-                            if res_update.status_code == 200:
-                                 
-                                st.success("✅ ¡Facturas vinculadas correctamente en la base de datos!")
-                                st.balloons()
-                                time.sleep(2)   
-                                requests.post('https://n8n-n8n.i4mjht.easypanel.host/webhook/0c67219b-97b4-4cb3-9e7d-6fe4ece90a6d',json= payload)
-                                st.rerun() 
+                    if not st.session_state.get("confirm_relacion"):
+                        if st.button("Guardar Relación de Facturas 💾", type="primary"):
+                            mask = df_editado[columnas_permitidas].notna().any(axis=1)
+                            modificados = df_editado[mask]
+                            if modificados.empty:
+                                st.warning("⚠️ No has ingresado ninguna factura nueva para guardar.")
                             else:
-                                st.error(f"Error: {res_update.text}")
-                        else:
-                            st.warning("⚠️ No has ingresado ninguna factura nueva para guardar.")
+                                st.session_state.confirm_relacion = True
+                                st.rerun()
+                    else:
+                        st.warning("⚠️ ¿Confirmas vincular las facturas editadas a sus cotizaciones?")
+                        col_ok, col_cancel = st.columns(2)
+                        with col_ok:
+                            if st.button("✅ Sí, guardar", type="primary", use_container_width=True, key="btn_ok_relacion"):
+                                mask = df_editado[columnas_permitidas].notna().any(axis=1)
+                                modificados = df_editado[mask]
+                                if not modificados.empty:
+                                    modificados['fecha_pago'] = modificados['fecha_pago'].dt.strftime('%Y-%m-%d')
+                                    modificados = modificados.where(pd.notnull(modificados), None)
+                                    columnas_a_enviar = ["codigo_cotizacion"] + columnas_permitidas
+                                    payload = modificados[columnas_a_enviar].to_dict(orient="records")
+                                    res_update = requests.post(f"{API_BASE_URL}/zeutica/relacionFactura", headers=toks, json=payload)
+                                    st.session_state.confirm_relacion = None
+                                    if res_update.status_code == 200:
+                                        st.success("✅ ¡Facturas vinculadas correctamente en la base de datos!")
+                                        st.balloons()
+                                        time.sleep(2)
+                                        requests.post('https://n8n-n8n.i4mjht.easypanel.host/webhook/0c67219b-97b4-4cb3-9e7d-6fe4ece90a6d', json=payload)
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Error: {res_update.text}")
+                        with col_cancel:
+                            if st.button("❌ Cancelar", use_container_width=True, key="btn_cancel_relacion"):
+                                st.session_state.confirm_relacion = None
+                                st.rerun()
 
                 else:
                     st.warning("No se encontraron registros en la base de datos.")

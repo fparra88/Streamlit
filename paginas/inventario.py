@@ -127,35 +127,38 @@ if st.session_state.usuario_nombre == "gerencia":
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                # Botón para guardar cambios
-                if st.button("✅ Guardar Cambios", use_container_width=True):
-                    try:
-                        with st.spinner('Guardando cambios...'):
-                            import numpy as np
-                            df_para_limpiar = pd.DataFrame(datos_editados)
-                            # Reemplazar NaN y convertir a lista de dicts para serializar JSON
-                            datos_limpios = df_para_limpiar.replace({np.nan: None})
-                            payload = {"productos": datos_limpios.to_dict(orient="records")}
-                            
-                            # Hacer POST al endpoint
-                            save_response = requests.post(
-                                f"{API_BASE_URL}/zeutica/productos/editados", headers= toks,
-                                json=payload
-                            )
-                        
-                        if save_response.status_code == 200:
-                            st.session_state.mensaje_exito = True
-                            st.session_state.show_editor = False
-                            st.session_state.productos_data = None
-                            st.rerun()
-                        else:
-                            st.error(f"Error al guardar: Código {save_response.status_code}")
-                            st.error(save_response.text)
-                    
-                    except requests.exceptions.RequestException as e:
-                        st.error(f"Error de conexión al guardar: {e}")
-                    except Exception as e:
-                        st.error(f"Error inesperado: {e}")
+                if not st.session_state.get("confirm_guardar_inv"):
+                    if st.button("✅ Guardar Cambios", use_container_width=True):
+                        st.session_state.confirm_guardar_inv = True
+                        st.rerun()
+                else:
+                    st.warning("⚠️ ¿Confirmas guardar los cambios en los productos?")
+                    if st.button("✅ Sí, guardar", type="primary", use_container_width=True):
+                        try:
+                            with st.spinner('Guardando cambios...'):
+                                import numpy as np
+                                df_para_limpiar = pd.DataFrame(datos_editados)
+                                datos_limpios = df_para_limpiar.replace({np.nan: None})
+                                payload = {"productos": datos_limpios.to_dict(orient="records")}
+                                save_response = requests.post(
+                                    f"{API_BASE_URL}/zeutica/productos/editados", headers= toks,
+                                    json=payload
+                                )
+                            st.session_state.confirm_guardar_inv = False
+                            if save_response.status_code == 200:
+                                st.session_state.mensaje_exito = True
+                                st.session_state.show_editor = False
+                                st.session_state.productos_data = None
+                                st.rerun()
+                            else:
+                                st.error(f"Error al guardar: Código {save_response.status_code}")
+                                st.error(save_response.text)
+                        except requests.exceptions.RequestException as e:
+                            st.error(f"Error de conexión al guardar: {e}")
+                            st.session_state.confirm_guardar_inv = False
+                        except Exception as e:
+                            st.error(f"Error inesperado: {e}")
+                            st.session_state.confirm_guardar_inv = False
             
             with col2:
                 # Botón para cancelar
@@ -214,45 +217,43 @@ if st.session_state.usuario_nombre == "gerencia":
         col_btn1, col_btn2, col_btn3 = st.columns(3)
         
         with col_btn1:
-            if st.button("✅ Crear Producto", use_container_width=True):
-                # Validar que al menos los campos básicos estén llenos
-                if not sku or not nombre or not categoria:
-                    st.error("❌ Por favor completa SKU, Nombre y Categoría")
-                else:
+            if not st.session_state.get("confirm_crear_prod"):
+                if st.button("✅ Crear Producto", use_container_width=True):
+                    if not sku or not nombre or not categoria:
+                        st.error("❌ Por favor completa SKU, Nombre y Categoría")
+                    else:
+                        st.session_state.confirm_crear_prod = {
+                            "sku": sku, "nombre": nombre, "categoria": categoria,
+                            "medida": medida, "ubicacion": ubicacion,
+                            "stock_minimo": stock_minimo, "numero_referencia": numero_referencia,
+                            "costo_total": costo_total, "precio": precio,
+                            "precio_2": precio_2, "precio_3": precio_3,
+                        }
+                        st.rerun()
+            else:
+                cp = st.session_state.confirm_crear_prod
+                st.warning(f"⚠️ ¿Confirmas crear el producto **{cp['sku']} — {cp['nombre']}**?")
+                if st.button("✅ Sí, crear", type="primary", use_container_width=True):
                     try:
                         with st.spinner('Creando producto...'):
-                            payload = {
-                                "sku": sku,
-                                "nombre": nombre,
-                                "categoria": categoria,
-                                "medida": medida,
-                                "ubicacion": ubicacion,
-                                "stock_minimo": stock_minimo,
-                                "numero_referencia": numero_referencia,
-                                "costo_total": costo_total,
-                                "precio": precio,
-                                "precio_2": precio_2,
-                                "precio_3": precio_3
-                            }
-                            
-                            # Hacer POST al endpoint
                             response = requests.post(
-                                f"{API_BASE_URL}/zeutica/producto/nuevo", headers= toks,
-                                json=payload
+                                f"{API_BASE_URL}/zeutica/producto/nuevo", headers=toks,
+                                json=cp
                             )
-                        
-                        if response.status_code == 200 or response.status_code == 201:
+                        st.session_state.confirm_crear_prod = None
+                        if response.status_code in (200, 201):
                             st.session_state.mensaje_nuevo_exito = True
                             st.session_state.show_form_nuevo = False
                             st.rerun()
                         else:
                             st.error(f"Error al crear producto: Código {response.status_code}")
                             st.error(response.text)
-                    
                     except requests.exceptions.RequestException as e:
                         st.error(f"Error de conexión: {e}")
+                        st.session_state.confirm_crear_prod = None
                     except Exception as e:
                         st.error(f"Error inesperado: {e}")
+                        st.session_state.confirm_crear_prod = None
         
         with col_btn2:
             if st.button("❌ Cancelar", use_container_width=True):
