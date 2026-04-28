@@ -80,6 +80,7 @@ if st.session_state.get("gasto_pendiente"):
                     res = requests.post(f"{API_BASE_URL}/zeutica/gastos", headers=toks, json=payload)
                 if res.status_code == 200:
                     st.session_state.gasto_pendiente = None
+                    requests.post('https://n8n-n8n.i4mjht.easypanel.host/webhook/678bae31-bb49-478e-93a2-cad2888a298a',json=payload)
                     st.success("✅ Registro aceptado")
                 else:
                     st.error(f"❌ Error del servidor: {res.status_code} - {res.text}")
@@ -149,6 +150,7 @@ if st.session_state.get("sku_gasto_pendiente"):
                 res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", headers=toks, json=payload)
                 if res.status_code == 200:
                     st.session_state.sku_gasto_pendiente = None
+                    requests.post('https://n8n-n8n.i4mjht.easypanel.host/webhook/678bae31-bb49-478e-93a2-cad2888a298a',json=payload)
                     st.success("✅ Gasto registrado correctamente")
                     st.balloons()
                     time.sleep(2)

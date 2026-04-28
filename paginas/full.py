@@ -144,7 +144,8 @@ def mostrar_traspasos():
                         ]
                         payload = {
                             "usuario": st.session_state.get("usuario_nombre", "Error"),
-                            "movimientos": movimientos
+                            "movimientos": movimientos,
+                            "almacen": ct['destino']
                         }
                         try:
                             with st.spinner("Ejecutando traspaso en base de datos..."):
