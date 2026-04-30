@@ -8,6 +8,7 @@ from streamlit_javascript import st_javascript
 API_BASE_URL = "http://10.0.9.227:8090" #url produccion
 #API_BASE_URL = "http://127.0.0.1:8000"
 cliente_hora = st_javascript("new Date().toLocaleString()")
+st.session_state.cliente_hora = cliente_hora  # disponible para páginas exec'd
 
 # Configuración de la página
 st.set_page_config(
@@ -235,7 +236,7 @@ else:
 
     # ---  LÓGICA DE PÁGINAS ---
     if selected == "Dashboard":
-        if st.session_state.usuario_nombre == "gerencia":
+        if st.session_state.usuario_nombre == "gerencia" or st.session_state.usuario_nombre == "fparra":
             with open("paginas/dashboard.py", encoding="utf-8") as f:
                 exec(f.read())
         else:
@@ -275,13 +276,13 @@ else:
             exec(f.read()) 
     
     elif selected == "Gastos Operativos":
-        # Lee y ejecuta full        
+        # Lee y ejecuta Gastos Operativos        
         with open("paginas/gastos.py", encoding="utf-8") as f:
             exec(f.read())
 
     elif selected == "Cuentas Pendientes":
-        if st.session_state.usuario_nombre == "fparra":
-            # Lee y ejecuta full        
+        if st.session_state.usuario_nombre == "gerencia" or st.session_state.usuario_nombre == "fparra":
+            # Lee y ejecuta Cuentas Pendientes        
             with open("paginas/por_cobrar-pagar.py", encoding="utf-8") as f:
                 exec(f.read())
         else:
@@ -291,22 +292,16 @@ else:
             st.write(f"Lo sentimos **{st.session_state.get('usuario_nombre', 'Usuario')}**, no tienes los permisos necesarios para visualizar esta información.")
 
     elif selected == "CleanestChoice":
-        # Lee y ejecuta full        
+        # Lee y ejecuta CleanestChoice       
         with open("paginas/cleanestc.py", encoding="utf-8") as f:
             exec(f.read())
 
     elif selected == "Compras":
-        if st.session_state.usuario_nombre == "gerencia":
-            # Lee y ejecuta full        
+        # Lee y ejecuta Compras        
             with open("paginas/compras.py", encoding="utf-8") as f:
                 exec(f.read())
-        else:
-            # 3. Mensaje de error persistente
-            st.error("### 🛑 ACCESO RESTRINGIDO")
-            st.subheader("Sección: Compras")
-            st.write(f"Lo sentimos **{st.session_state.get('usuario_nombre', 'Usuario')}**, no tienes los permisos necesarios para visualizar esta información.")
-
+        
     elif selected == "Monitor Cobranza":
-        # Lee y ejecuta full        
+        # Lee y ejecuta Monitor Cobranza      
         with open("paginas/monitor_cobranza.py", encoding="utf-8") as f:
             exec(f.read())    

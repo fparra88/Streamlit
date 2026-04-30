@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
+import pandas as pd
 from datetime import datetime
+from streamlit_javascript import st_javascript
 
 API_BASE_URL = st.session_state.ip
 
@@ -73,113 +75,84 @@ if rep_traspasos:
 
 st.divider()
 
-# ====== SECCIÓN DE WEB SCRAPING ======
-st.header("Scraping de Productos - ZVG")
-st.info("Consulta productos desde https://zvg.es/productos/")
+# --------- Seccion de Analisis Estadistico a Mostrar ----------
+st.header("Analisis estadistico de ventas por SKU")
+st.info("Predicción semanal de ventas por SKU generada por el modelo estadístico. Se actualiza automáticamente cada lunes a las 8:30 AM.")
 
-scrap_button = st.button("Obtener Productos ZVG")
+def obtener_estadistica():
+    """POST /zeutica/obtener-estadistica → DataFrame con predicción semanal por SKU."""
+    hoy = datetime.now()
+    # Retroceder 3 meses manejando rollover de año
+    if hoy.month > 3:
+        hace_3m = hoy.replace(month=hoy.month - 3)
+    else:
+        hace_3m = hoy.replace(year=hoy.year - 1, month=hoy.month + 9)
 
-if scrap_button:
     try:
-        with st.spinner("Realizando scraping..."):
-            # Importar BeautifulSoup
-            from bs4 import BeautifulSoup
-            import pandas as pd
-            
-            # URL a scraping
-            url = "https://www.espn.com.mx/beisbol/mlb/estadisticas/jugador/_/tabla/batting/ordenar/atBats/dir/desc"
-            
-            # Headers para evitar bloqueos
-            headers = {
-                'User-Agent': '(windows NT 10.0; Win64; x64)',
-                 "Accept-Language": "es-MX,es;q=0.9"
-            }
-            
-            # Realizar petición web            
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            
-            # Parsear HTML
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Extraer productos (ajusta los selectores según la estructura del sitio)
-            productos = []
-            
-            # Buscar elementos de producto (estos selectores pueden necesitar ajuste)
-            product_elements = soup.find_all('div', class_='product')
-            
-            if not product_elements:
-                # Alternativa: buscar por otra estructura común
-                product_elements = soup.find_all('article', class_='product-item')
-            
-            if not product_elements:
-                # Otra alternativa más genérica
-                product_elements = soup.find_all('li', class_='product')
-            
-            for element in product_elements:
-                try:
-                    # Extraer nombre
-                    nombre = element.find('h2', class_='product-name')
-                    nombre = nombre.text.strip() if nombre else 'N/A'
-                    
-                    # Extraer precio
-                    precio = element.find('span', class_='price')
-                    precio = precio.text.strip() if precio else 'N/A'
-                    
-                    # Extraer descripción o categoría
-                    descripcion = element.find('p', class_='description')
-                    descripcion = descripcion.text.strip() if descripcion else 'N/A'
-                    
-                    # Extraer enlace
-                    enlace = element.find('a', href=True)
-                    enlace = enlace['href'] if enlace else 'N/A'
-                    
-                    productos.append({
-                        'nombre': nombre,
-                        'precio': precio,
-                        'descripcion': descripcion,
-                        'enlace': enlace
-                    })
-                
-                except Exception as e:
-                    st.warning(f"Error extrayendo elemento: {e}")
-                    continue
-            
-            # Crear DataFrame
-            if productos:
-                df_productos = pd.DataFrame(productos)
-                
-                st.success(f"✅ Se extrajeron {len(df_productos)} productos")
-                
-                # Mostrar tabla
-                st.dataframe(
-                    df_productos,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "nombre": st.column_config.TextColumn("Producto", width=250),
-                        "precio": st.column_config.TextColumn("Precio"),
-                        "descripcion": st.column_config.TextColumn("Descripción", width=300),
-                        "enlace": st.column_config.LinkColumn("Enlace", display_text="Ver producto")
-                    }
-                )
-                
-                # Descargar como CSV
-                csv = df_productos.to_csv(index=False)
-                st.download_button(
-                    label="Descargar como CSV",
-                    data=csv,
-                    file_name="productos_zvg.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.warning("⚠️ No se encontraron productos. Los selectores CSS pueden haber cambiado en el sitio.")
-                st.info("Tip: Inspecciona el sitio web y proporciona los selectores CSS correctos.")
-    
-    except requests.exceptions.Timeout:
-        st.error("❌ Timeout: El sitio tardó demasiado en responder.")
-    except requests.exceptions.ConnectionError:
-        st.error("❌ Error de conexión: No se pudo acceder al sitio.")
+        res = requests.post(
+            f"{API_BASE_URL}/zeutica/obtener-estadistica",
+            headers=toks,
+            json={
+                "fecha":  hace_3m.strftime("%Y-%m-%d"),
+                "fecha2": hoy.strftime("%Y-%m-%d"),
+            },
+            timeout=15,
+        )
+        if res.status_code == 200:
+            data = res.json()
+            return pd.DataFrame(data) if data else pd.DataFrame()
+        st.error(f"Error al obtener predicción ({res.status_code})")
+        return None
     except Exception as e:
-        st.error(f"❌ Error durante el scraping: {e}")
+        st.error(f"Error de conexión: {e}")
+        return None
+
+# Detectamos día y hora del cliente vía JS para no depender del timezone del servidor
+js_day  = st_javascript("new Date().getDay()")    # 0=Dom 1=Lun … 6=Sab
+js_hour = st_javascript("new Date().getHours()")
+js_min  = st_javascript("new Date().getMinutes()")
+
+# Clave por fecha para que el auto-fetch solo ocurra una vez por lunes en la sesión
+_hora_raw = st.session_state.get("cliente_hora", "")
+fecha_key = str(_hora_raw)[:10] if isinstance(_hora_raw, str) else ""
+lunes_key = f"pred_lunes_{fecha_key}"
+
+es_lunes_830 = (
+    isinstance(js_day,  (int, float)) and int(js_day)  == 1
+    and isinstance(js_hour, (int, float)) and int(js_hour) == 8
+    and isinstance(js_min,  (int, float)) and 25 <= int(js_min) <= 59
+)
+
+if es_lunes_830 and lunes_key not in st.session_state:
+    st.session_state[lunes_key] = True
+    st.session_state.pred_df = obtener_estadistica()
+
+st.info("Predicción semanal de ventas por SKU generada por el modelo estadístico.")
+
+if st.button("🔄 Obtener Predicción Semanal", use_container_width=False):
+    st.session_state.pred_df = obtener_estadistica()
+
+if "pred_df" in st.session_state and st.session_state.pred_df is not None:
+    df_pred = st.session_state.pred_df
+    if not df_pred.empty:
+        # Expande JSON de columna predicciones → 3 cols limpias
+        if "predicciones" in df_pred.columns:
+            df_pred = pd.json_normalize(df_pred["predicciones"].apply(
+                lambda x: x if isinstance(x, dict) else __import__("json").loads(x)
+            ))[["sku", "cantidad", "prediccion_ventas"]]
+        st.dataframe(
+            df_pred,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "sku": st.column_config.TextColumn("SKU"),
+                "cantidad": st.column_config.NumberColumn("Cantidad"),
+                "prediccion_ventas": st.column_config.NumberColumn("Predicción Ventas", format="%.2f"),
+            }
+        )
+        st.metric(label="SKUs en predicción", value=len(df_pred))
+    else:
+        st.info("Sin datos de predicción disponibles.")
+else:
+    st.caption("Presiona el botón o espera al lunes 8:30 AM para carga automática.")
 
