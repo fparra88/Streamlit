@@ -48,9 +48,8 @@ except Exception:
 if cookie_session and cookie_token and not st.session_state.autenticado:
     st.session_state.autenticado = True
     st.session_state.usuario_nombre = cookie_session
-    st.session_state.token = cookie_token
-    st.session_state.ip = "http://10.0.9.227:8090" #url produccion
-    #st.session_state.ip = "http://127.0.0.1:8000"
+    st.session_state.token = cookie_token    
+    st.session_state.ip = API_BASE_URL
 
 def validar_acceso(user, pw):
     try:
@@ -59,9 +58,8 @@ def validar_acceso(user, pw):
             token = res.json()["access_token"]
             st.session_state.autenticado = True
             st.session_state.usuario_nombre = user  # Corregido: era 'usuario'
-            st.session_state.token = token
-            st.session_state.ip = "http://10.0.9.227:8090" #url produccion
-            #st.session_state.ip = "http://127.0.0.1:8000"
+            st.session_state.token = token            
+            st.session_state.ip = API_BASE_URL
             # Guardamos usuario y token en cookies para sobrevivir el refresh
             controller.set("zeutica_session", user, max_age=1800)
             controller.set("zeutica_token", token, max_age=1800)

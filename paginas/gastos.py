@@ -145,6 +145,7 @@ if st.session_state.get("sku_gasto_pendiente"):
                 "otros": "ESTE ARTICULO FUE USADO EN ALMACEN",
                 "plataforma": "BODEGA",
                 "usuario": st.session_state.usuario_nombre,
+                "condicion_pago": "N/A"
             }
             try:
                 res = requests.post(f"{API_BASE_URL}/zeutica/producto/venta", headers=toks, json=payload)
