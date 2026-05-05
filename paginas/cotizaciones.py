@@ -242,7 +242,16 @@ if st.session_state.mostrar_formCotizacion:
             
             cc1, cc2 = st.columns(2)
             cant = cc1.number_input("Cantidad", 1, 1000, 1)
-            
+
+            # Guía dinámica: resalta el tier de precio master según la cantidad ingresada
+            if cant <= 3:
+                tier_msg = "**→ 1-3 MASTER: PRECIO A** · 4-7: PRECIO B · 8+: PRECIO C"
+            elif cant <= 7:
+                tier_msg = "1-3: PRECIO A · **→ 4-7 MASTER: PRECIO B** · 8+: PRECIO C"
+            else:
+                tier_msg = "1-3: PRECIO A · 4-7: PRECIO B · **→ 8+ MASTER: PRECIO C**"
+            cc1.caption(tier_msg)
+
             # Asignamos el precio base dependiendo de la selección en el radio button
             p_base = 0.0
             if sel_prod: 
